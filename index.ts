@@ -7,11 +7,16 @@ configDotenv();
 
 const app: Express = express();
 
+app.use(express.json())
+
 // Start Connection to DB
 
 const dBConnection = new DBConnection("localhost", "banconexion", "root", "");
 
-
+app.post("/register", (req: Request, res: Response) => {
+    const query: string = `INSERT INTO personas(FULL_NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT) VALUES (${req.body.name, req.body.type, req.body.document, req.body.age, req.body.transport})`;
+    dBConnection.connection.query(query);
+})
 
 app.get("/hola", (req: Request, res: Response) => {
     const result: any = [];

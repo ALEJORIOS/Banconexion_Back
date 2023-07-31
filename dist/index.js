@@ -8,8 +8,13 @@ const express_1 = __importDefault(require("express"));
 const db_1 = __importDefault(require("./db"));
 (0, dotenv_1.configDotenv)();
 const app = (0, express_1.default)();
+app.use(express_1.default.json());
 // Start Connection to DB
 const dBConnection = new db_1.default("localhost", "banconexion", "root", "");
+app.post("/register", (req, res) => {
+    const query = `INSERT INTO personas(FULL_NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT) VALUES (${req.body.name, req.body.type, req.body.document, req.body.age, req.body.transport})`;
+    dBConnection.connection.query(query);
+});
 app.get("/hola", (req, res) => {
     const result = [];
     dBConnection.connection.query('SELECT * FROM personas', (error, results, fields) => {
