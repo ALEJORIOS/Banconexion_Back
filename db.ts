@@ -7,7 +7,8 @@ export default class DBConnection {
             host,
             database,
             user,
-            password
+            password,
+            port: 3308
         })
 
         this.connect()
@@ -17,6 +18,7 @@ export default class DBConnection {
         this.connection.connect((error) => {
             if(error) {
                 console.error('Error al crear una conexión a la base de datos');
+                console.error(error);
             }else{
                 console.log('Success Connection to MySql');
             }
