@@ -42,21 +42,20 @@ app.post("/register", (req: Request, res: Response) => {
             res.statusCode = 200;
             res.send("OK");
         }
-
     });
 })
 
-app.get("/hola", (req: Request, res: Response) => {
-    const result: any = [];
-    dBConnection.connection.query('SELECT * FROM persons', (error: MysqlError | null, results?: any, fields?: FieldInfo[]) => {
+app.put("/edit-user", (req: Request, res: Response) => {
+    const query: string = `UPDATE persons SET NAME="${req.body.name}", DOCUMENT_TYPE="${req.body.type}", DOCUMENT="${req.body.document}", AGE=${req.body.age}, TRANSPORT=${req.body.transport} WHERE ID=${req.query.id}`;
+    dBConnection.connection.query(query, async(error: MysqlError | null, results?: any, fields?: FieldInfo[]) => {
         if(error) {
-            throw error;
+            const errorId = await reportFailure(JSON.stringify(error));
+            res.statusCode = 409;
+            res.send("Ocurrió un error al intentar actualizar este registro. ID del error: "+errorId);
+            console.error(error);
+        }else{
+            res.statusCode = 200;
+            res.send("OK");
         }
-
-        results.forEach((res: FieldInfo) => {
-            result.push(JSON.parse(JSON.stringify(res)))
-            console.log('>> ', res);
-        });
-        res.send(result);
     })
 })

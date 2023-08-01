@@ -40,16 +40,18 @@ app.post("/register", (req, res) => {
         }
     });
 });
-app.get("/hola", (req, res) => {
-    const result = [];
-    dBConnection.connection.query('SELECT * FROM persons', (error, results, fields) => {
+app.put("/edit-user", (req, res) => {
+    const query = `UPDATE persons SET NAME="${req.body.name}", DOCUMENT_TYPE="${req.body.type}", DOCUMENT="${req.body.document}", AGE=${req.body.age}, TRANSPORT=${req.body.transport} WHERE ID=${req.query.id}`;
+    dBConnection.connection.query(query, async (error, results, fields) => {
         if (error) {
-            throw error;
+            const errorId = await reportFailure(JSON.stringify(error));
+            res.statusCode = 409;
+            res.send("Ocurrió un error al intentar actualizar este registro. ID del error: " + errorId);
+            console.error(error);
         }
-        results.forEach((res) => {
-            result.push(JSON.parse(JSON.stringify(res)));
-            console.log('>> ', res);
-        });
-        res.send(result);
+        else {
+            res.statusCode = 200;
+            res.send("OK");
+        }
     });
 });
