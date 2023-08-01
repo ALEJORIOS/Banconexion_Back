@@ -14,7 +14,6 @@ class DBConnection {
             password,
             port: 3308
         });
-        this.connect();
     }
     connect() {
         this.connection.connect((error) => {
@@ -29,6 +28,35 @@ class DBConnection {
     }
     endConnection() {
         this.connection.end();
+    }
+    async execQuery(query) {
+        this.connect();
+        return new Promise((res, rej) => {
+            this.connection.query(query, async (error, results, fields) => {
+                if (error) {
+                    await this.reportFailure(JSON.stringify(error)).then((resolve) => {
+                        res(resolve);
+                    })
+                        .catch((reject) => {
+                        rej(reject);
+                    });
+                }
+                res(JSON.parse(JSON.stringify(results)));
+            });
+        });
+    }
+    reportFailure(error) {
+        return new Promise((resolve, reject) => {
+            const ErrorJson = JSON.parse(error);
+            this.connection.query(`INSERT INTO failures(DATE, CODE, ERRNO, ERROR) VALUES(NOW(), '${ErrorJson.code}', '${ErrorJson.errno}','${ErrorJson.sql}')`, (error, results) => {
+                if (error) {
+                    console.error("Error reportando la falla");
+                    reject(0);
+                }
+                console.log('results: ', results);
+                resolve(results.insertId);
+            });
+        });
     }
 }
 exports.default = DBConnection;

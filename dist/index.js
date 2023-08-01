@@ -14,44 +14,77 @@ app.listen(process.env.PORT, () => {
     console.log('Listening on port ', process.env.PORT);
 });
 const dBConnection = new db_1.default("localhost", "banconexion", "root", "kp9ytz4Rmdz5");
-function reportFailure(error) {
-    return new Promise((res) => {
-        const ErrorJson = JSON.parse(error);
-        dBConnection.connection.query(`INSERT INTO failures(DATE, CODE, ERRNO, ERROR) VALUES(NOW(), '${ErrorJson.code}', '${ErrorJson.errno}','${ErrorJson.sql}')`, (error, results, fields) => {
-            res(results.insertId);
-        });
-    });
-}
-function endConnection() {
-    dBConnection.endConnection();
-}
-app.post("/register", (req, res) => {
+/**
+ * Register a new user
+ * The admin value is 0 by default
+ */
+app.post("/register", async (req, res) => {
     const query = `INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, ADMIN) VALUES ("${req.body.name}", "${req.body.type}", "${req.body.document}", ${req.body.age}, ${req.body.transport}, 0)`;
-    dBConnection.connection.query(query, async (error, results, fields) => {
-        if (error) {
-            const errorId = await reportFailure(JSON.stringify(error));
-            res.statusCode = 409;
-            res.send("Ocurrió un error al intentar crear este registro. ID del error: " + errorId);
-            console.error(error);
+    await dBConnection.execQuery(query)
+        .then((resolve) => {
+        res.statusCode = 200;
+        res.send(resolve);
+    })
+        .catch((reject) => {
+        res.statusCode = 409;
+        if (reject) {
+            res.send(`Ocurrió un error al intentar crear este registro. ID del error: ${reject}`);
         }
         else {
-            res.statusCode = 200;
-            res.send("OK");
+            res.send(`Ocurrió un error al intentar crear este registro. También ocurrió un error al crear la falla`);
         }
     });
 });
-app.put("/edit-user", (req, res) => {
-    const query = `UPDATE persons SET NAME="${req.body.name}", DOCUMENT_TYPE="${req.body.type}", DOCUMENT="${req.body.document}", AGE=${req.body.age}, TRANSPORT=${req.body.transport} WHERE ID=${req.query.id}`;
-    dBConnection.connection.query(query, async (error, results, fields) => {
-        if (error) {
-            const errorId = await reportFailure(JSON.stringify(error));
-            res.statusCode = 409;
-            res.send("Ocurrió un error al intentar actualizar este registro. ID del error: " + errorId);
-            console.error(error);
+app.put("/edit-user", async (req, res) => {
+    const query = `UPDATE persons SET NAMEs="${req.body.name}", DOCUMENT_TYPE="${req.body.type}", DOCUMENT="${req.body.document}", AGE=${req.body.age}, TRANSPORT=${req.body.transport} WHERE ID=${req.query.id}`;
+    await dBConnection.execQuery(query)
+        .then((resolve) => {
+        res.statusCode = 200;
+        res.send(resolve);
+    })
+        .catch((reject) => {
+        res.statusCode = 409;
+        if (reject) {
+            res.send(`Ocurrió un error al intentar editar este registro. ID del error: ${reject}`);
         }
         else {
-            res.statusCode = 200;
-            res.send("OK");
+            res.send(`Ocurrió un error al intentar editar este registro. También ocurrió un error al crear la falla`);
+        }
+    });
+});
+// TODO: check if have balance
+app.delete("/delete-user", async (req, res) => {
+    const query = `DELETE FROM persons WHERE ID=${req.query.id}`;
+    await dBConnection.execQuery(query)
+        .then((resolve) => {
+        res.statusCode = 200;
+        res.send(resolve);
+    })
+        .catch((reject) => {
+        res.statusCode = 409;
+        if (reject) {
+            res.send(`Ocurrió un error al intentar eliminar este registro. ID del error: ${reject}`);
+        }
+        else {
+            res.send(`Ocurrió un error al intentar eliminar este registro. También ocurrió un error al crear la falla`);
+        }
+    });
+});
+// TO DO: subquery to find ID
+app.get("/user", async (req, res) => {
+    const query = `SELECT * FROM persons WHERE PARENT_RELATIONSHIP = ${} OR ID = ${}`;
+    await dBConnection.execQuery(query)
+        .then((resolve) => {
+        res.statusCode = 200;
+        res.send(resolve);
+    })
+        .catch((reject) => {
+        res.statusCode = 409;
+        if (reject) {
+            res.send(`Ocurrió un error al intentar enviar este registro. ID del error: ${reject}`);
+        }
+        else {
+            res.send(`Ocurrió un error al intentar enviar este registro. También ocurrió un error al crear la falla`);
         }
     });
 });
