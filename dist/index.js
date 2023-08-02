@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const dotenv_1 = require("dotenv");
 const express_1 = __importDefault(require("express"));
 const db_1 = __importDefault(require("./db"));
+const exceljs_1 = require("exceljs");
 (0, dotenv_1.configDotenv)();
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
@@ -35,13 +36,11 @@ app.post("/register", async (req, res) => {
         }
     });
 });
-// TODO fix
 app.put("/edit-user", async (req, res) => {
     const query = `UPDATE persons SET NAME="${req.body.name}", DOCUMENT_TYPE="${req.body.type}", DOCUMENT="${req.body.document}", AGE=${req.body.age}, TRANSPORT=${req.body.transport} WHERE ID=${req.query.id}`;
     await dBConnection.execQuery(query)
         .then((resolve) => {
         res.statusCode = 200;
-        console.log('Entra biuen');
         res.send(resolve);
     })
         .catch((reject) => {
@@ -185,7 +184,7 @@ app.post("/payment", async (req, res) => {
     });
 });
 app.get("/transactions", async (req, res) => {
-    const query = `SELECT tr.ID, tr.DATE, tr.USER, p1.DOCUMENT_TYPE, p1.DOCUMENT, p1.NAME, p2.NAME AS AUTHORIZED_BY, tr.DONATION FROM transactions as tr
+    const query = `SELECT tr.ID, tr.DATE, tr.VALUE, tr.USER, p1.DOCUMENT_TYPE, p1.DOCUMENT, p1.NAME, p2.NAME AS AUTHORIZED_BY, tr.DONATION FROM transactions as tr
     LEFT JOIN persons as p1 ON tr.USER = p1.ID
     LEFT JOIN persons as p2 ON tr.AUTHORIZED_BY = p2.ID`;
     await dBConnection.execQuery(query)
@@ -196,10 +195,10 @@ app.get("/transactions", async (req, res) => {
         .catch((reject) => {
         res.statusCode = 409;
         if (reject) {
-            res.send(`Ocurrió un error al realizar este abono. ID del error: ${reject}`);
+            res.send(`Ocurrió un error al ver las transacciones. ID del error: ${reject}`);
         }
         else {
-            res.send(`Ocurrió un error al realizar este abono. También ocurrió un error al crear la falla`);
+            res.send(`Ocurrió un error al ver las transacciones. También ocurrió un error al crear la falla`);
         }
     });
 });
@@ -213,10 +212,61 @@ app.put("/edit-transaction", async (req, res) => {
         .catch((reject) => {
         res.statusCode = 409;
         if (reject) {
-            res.send(`Ocurrió un error al realizar este abono. ID del error: ${reject}`);
+            res.send(`Ocurrió un error al editar esta transacción. ID del error: ${reject}`);
         }
         else {
-            res.send(`Ocurrió un error al realizar este abono. También ocurrió un error al crear la falla`);
+            res.send(`Ocurrió un error al editar esta transacción. También ocurrió un error al crear la falla`);
         }
     });
 });
+app.get("/export-transactions", async (req, res) => {
+    try {
+        let workbook = new exceljs_1.Workbook();
+        const sheet = workbook.addWorksheet("transacciones");
+        sheet.columns = [
+            { header: "Fecha", key: "DATE", width: 25 },
+            { header: "Tipo_Documento", key: "DOCUMENT_TYPE", width: 10 },
+            { header: "Documento", key: "DOCUMENT", width: 12 },
+            { header: "Nombre", key: "NAME", width: 25 },
+            { header: "Valor", key: "VALUE", width: 10 },
+            { header: "Autoriza", key: "AUTHORIZED_BY", width: 25 },
+            { header: "Donacion", key: "DONATION", width: 5 }
+        ];
+        const OBJECT = await getTransactions();
+        await OBJECT.map((value, index) => {
+            sheet.addRow({
+                DATE: value.DATE,
+                DOCUMENT_TYPE: value.DOCUMENT_TYPE,
+                DOCUMENT: value.DOCUMENT,
+                NAME: value.NAME,
+                VALUE: value.VALUE,
+                AUTHORIZED_BY: value.AUTHORIZED_BY,
+                DONATION: value.DONATION === 1 ? "Sí" : "No"
+            });
+        });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment;filename=" + "transactions.xlsx");
+        workbook.xlsx.write(res);
+    }
+    catch (error) {
+        console.error(error);
+    }
+    // "ID": 6,
+    // "DATE": "2023-08-02T21:58:24.000Z",
+    // "VALUE": 100,
+    // "USER": 9,
+    // "DOCUMENT_TYPE": "CC",
+    // "DOCUMENT": "1032488686",
+    // "NAME": "Alejandro Rios",
+    // "AUTHORIZED_BY": "Nicole Soto",
+    // "DONATION": 0
+});
+async function getTransactions() {
+    const query = `SELECT tr.ID, tr.DATE, tr.VALUE, tr.USER, p1.DOCUMENT_TYPE, p1.DOCUMENT, p1.NAME, p2.NAME AS AUTHORIZED_BY, tr.DONATION FROM transactions as tr
+    LEFT JOIN persons as p1 ON tr.USER = p1.ID
+    LEFT JOIN persons as p2 ON tr.AUTHORIZED_BY = p2.ID`;
+    return await dBConnection.execQuery(query)
+        .then((resolve) => {
+        return resolve;
+    });
+}
