@@ -10,6 +10,7 @@ export default class DBConnection {
             password,
             port: 3308
         })
+        this.connect();
     }
     
     public connect() {
@@ -27,8 +28,7 @@ export default class DBConnection {
         this.connection.end();
     }
 
-    public async execQuery(query: string): Promise<number> {
-        this.connect();
+    public async execQuery(query: string): Promise<any> {
         return new Promise<any>((res, rej) => {
             this.connection.query(query, async(error: MysqlError | null, results?: any, fields?: FieldInfo[]) => {
                 if(error) {

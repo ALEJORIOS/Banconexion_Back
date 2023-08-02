@@ -14,6 +14,7 @@ class DBConnection {
             password,
             port: 3308
         });
+        this.connect();
     }
     connect() {
         this.connection.connect((error) => {
@@ -30,7 +31,6 @@ class DBConnection {
         this.connection.end();
     }
     async execQuery(query) {
-        this.connect();
         return new Promise((res, rej) => {
             this.connection.query(query, async (error, results, fields) => {
                 if (error) {

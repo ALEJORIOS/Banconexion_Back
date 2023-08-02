@@ -70,9 +70,10 @@ app.delete("/delete-user", async (req, res) => {
         }
     });
 });
-// TO DO: subquery to find ID
 app.get("/user", async (req, res) => {
-    const query = `SELECT * FROM persons WHERE PARENT_RELATIONSHIP = ${} OR ID = ${}`;
+    const query = `SELECT * FROM persons
+    WHERE (DOCUMENT = ${req.query.document} AND DOCUMENT_TYPE = "${req.query.type}") OR
+    PARENT_RELATIONSHIP = (SELECT ID FROM persons WHERE (DOCUMENT = ${req.query.document} AND DOCUMENT_TYPE = "${req.query.type}"))`;
     await dBConnection.execQuery(query)
         .then((resolve) => {
         res.statusCode = 200;
@@ -85,6 +86,69 @@ app.get("/user", async (req, res) => {
         }
         else {
             res.send(`Ocurrió un error al intentar enviar este registro. También ocurrió un error al crear la falla`);
+        }
+    });
+});
+app.post("/login", async (req, res) => {
+    const query = `SELECT * FROM persons
+    WHERE USER = "${req.body.user}" AND PASSWORD = "${req.body.password}" AND DOCUMENT = ${req.body.document}`;
+    await dBConnection.execQuery(query)
+        .then((resolve) => {
+        if (resolve.length > 0) {
+            res.statusCode = 200;
+            res.send("OK");
+        }
+        else {
+            res.statusCode = 401;
+            res.send("Usuario o contraseña erróneo");
+        }
+    })
+        .catch((reject) => {
+        res.statusCode = 409;
+        if (reject) {
+            res.send(`Ocurrió un error al intentar enviar este registro. ID del error: ${reject}`);
+        }
+        else {
+            res.send(`Ocurrió un error al intentar enviar este registro. También ocurrió un error al crear la falla`);
+        }
+    });
+});
+app.get("/fees", async (req, res) => {
+    const query = `SELECT * FROM params WHERE 
+        (ATTRIBUTE = "TARIFA_COMPLETA" OR 
+        ATTRIBUTE = "TARIFA_NINO" OR 
+        ATTRIBUTE = "TARIFA_BEBE" OR 
+        ATTRIBUTE = "TARIFA_MENOR" OR 
+        ATTRIBUTE = "TRANSPORTE")`;
+    await dBConnection.execQuery(query)
+        .then((resolve) => {
+        res.statusCode = 200;
+        res.send(resolve);
+    })
+        .catch((reject) => {
+        res.statusCode = 409;
+        if (reject) {
+            res.send(`Ocurrió un error al intentar buscar este registro. ID del error: ${reject}`);
+        }
+        else {
+            res.send(`Ocurrió un error al intentar buscar este registro. También ocurrió un error al crear la falla`);
+        }
+    });
+});
+app.get("/all-users", async (req, res) => {
+    const query = `SELECT DOCUMENT_TYPE, DOCUMENT, NAME FROM persons`;
+    await dBConnection.execQuery(query)
+        .then((resolve) => {
+        res.statusCode = 200;
+        res.send(resolve);
+    })
+        .catch((reject) => {
+        res.statusCode = 409;
+        if (reject) {
+            res.send(`Ocurrió un error al intentar buscar estos registro. ID del error: ${reject}`);
+        }
+        else {
+            res.send(`Ocurrió un error al intentar buscar estos registro. También ocurrió un error al crear la falla`);
         }
     });
 });
