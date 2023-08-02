@@ -39,13 +39,16 @@ app.post("/register", async(req: Request, res: Response) => {
     })
 })
 
+// TODO fix
 app.put("/edit-user", async(req: Request, res: Response) => {
-    const query: string = `UPDATE persons SET NAMEs="${req.body.name}", DOCUMENT_TYPE="${req.body.type}", DOCUMENT="${req.body.document}", AGE=${req.body.age}, TRANSPORT=${req.body.transport} WHERE ID=${req.query.id}`;
+    const query: string = `UPDATE persons SET NAME="${req.body.name}", DOCUMENT_TYPE="${req.body.type}", DOCUMENT="${req.body.document}", AGE=${req.body.age}, TRANSPORT=${req.body.transport} WHERE ID=${req.query.id}`;
     await dBConnection.execQuery(query)
     .then((resolve) => {
         res.statusCode = 200;
+        console.log('Entra biuen');
         res.send(resolve);
     })
+
     .catch((reject) => {
         res.statusCode = 409;
         if(reject) {
@@ -57,10 +60,8 @@ app.put("/edit-user", async(req: Request, res: Response) => {
     })
 })
 
-
-// TODO: check if have balance
 app.delete("/delete-user", async(req: Request, res: Response) => {
-    const query: string = `DELETE FROM persons WHERE ID=${req.query.id}`;
+    const query: string = `DELETE FROM persons WHERE ID=${req.query.id} AND (SELECT SUM(VALUE) FROM transactions WHERE transactions.USER = ${req.query.id}) IS NULL`;
     await dBConnection.execQuery(query)
     .then((resolve) => {
         res.statusCode = 200;
@@ -78,9 +79,18 @@ app.delete("/delete-user", async(req: Request, res: Response) => {
 })
 
 app.get("/user", async(req: Request, res: Response) => {
-    const query: string = `SELECT * FROM persons
-    WHERE (DOCUMENT = ${req.query.document} AND DOCUMENT_TYPE = "${req.query.type}") OR
-    PARENT_RELATIONSHIP = (SELECT ID FROM persons WHERE (DOCUMENT = ${req.query.document} AND DOCUMENT_TYPE = "${req.query.type}"))`;
+    const query: string = `SELECT 
+        p.ID, 
+        p.DOCUMENT_TYPE, 
+        p.DOCUMENT, 
+        p.NAME, 
+        p.AGE, 
+        p.TRANSPORT, 
+        p.ADMIN, 
+        (select SUM(VALUE) FROM transactions WHERE USER = p.ID) AS BALANCE 
+        FROM persons AS p
+        WHERE (p.DOCUMENT = ${req.query.document} AND p.DOCUMENT_TYPE = "${req.query.type}") OR
+        PARENT_RELATIONSHIP = (SELECT ID FROM persons AS p WHERE (p.DOCUMENT = ${req.query.document} AND p.DOCUMENT_TYPE = "${req.query.type}"))`;
     await dBConnection.execQuery(query)
     .then((resolve) => {
         res.statusCode = 200;
@@ -154,6 +164,65 @@ app.get("/all-users", async(req: Request, res: Response) => {
             res.send(`Ocurrió un error al intentar buscar estos registro. ID del error: ${reject}`)
         }else{
             res.send(`Ocurrió un error al intentar buscar estos registro. También ocurrió un error al crear la falla`)
+        }
+    })
+})
+
+app.post("/payment", async(req: Request, res: Response) => {
+    const query: string = `INSERT INTO transactions(DATE, VALUE, USER, AUTHORIZED_BY, DONATION) 
+    VALUES(NOW(), 
+        ${req.body.value}, 
+        (SELECT ID FROM persons WHERE DOCUMENT_TYPE = "${req.body.type}" AND DOCUMENT = "${req.body.document}"), 
+        (SELECT ID FROM persons WHERE DOCUMENT_TYPE = "${req.body.authorizedBy.type}" AND DOCUMENT = "${req.body.authorizedBy.document}"), 
+        ${req.body.donation})`;
+
+    await dBConnection.execQuery(query)
+    .then((resolve) => {
+        res.statusCode = 200;
+        res.send(resolve);
+    })
+    .catch((reject) => {
+        res.statusCode = 409;
+        if(reject) {
+            res.send(`Ocurrió un error al realizar este abono. ID del error: ${reject}`)
+        }else{
+            res.send(`Ocurrió un error al realizar este abono. También ocurrió un error al crear la falla`)
+        }
+    })
+})
+
+app.get("/transactions", async(req: Request, res: Response) => {
+    const query: string = `SELECT tr.ID, tr.DATE, tr.USER, p1.DOCUMENT_TYPE, p1.DOCUMENT, p1.NAME, p2.NAME AS AUTHORIZED_BY, tr.DONATION FROM transactions as tr
+    LEFT JOIN persons as p1 ON tr.USER = p1.ID
+    LEFT JOIN persons as p2 ON tr.AUTHORIZED_BY = p2.ID`;
+    await dBConnection.execQuery(query)
+    .then((resolve) => {
+        res.statusCode = 200;
+        res.send(resolve);
+    })
+    .catch((reject) => {
+        res.statusCode = 409;
+        if(reject) {
+            res.send(`Ocurrió un error al realizar este abono. ID del error: ${reject}`)
+        }else{
+            res.send(`Ocurrió un error al realizar este abono. También ocurrió un error al crear la falla`)
+        }
+    })
+})
+
+app.put("/edit-transaction", async(req: Request, res: Response) => {
+    const query: string = `UPDATE transactions SET VALUE = ${req.body.value}, DONATION = ${req.body.donation} WHERE ID = ${req.query.id}`;
+    await dBConnection.execQuery(query)
+    .then((resolve) => {
+        res.statusCode = 200;
+        res.send(resolve);
+    })
+    .catch((reject) => {
+        res.statusCode = 409;
+        if(reject) {
+            res.send(`Ocurrió un error al realizar este abono. ID del error: ${reject}`)
+        }else{
+            res.send(`Ocurrió un error al realizar este abono. También ocurrió un error al crear la falla`)
         }
     })
 })

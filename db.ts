@@ -33,16 +33,15 @@ export default class DBConnection {
             this.connection.query(query, async(error: MysqlError | null, results?: any, fields?: FieldInfo[]) => {
                 if(error) {
                     await this.reportFailure(JSON.stringify(error)).then((resolve) => {
-                        res(resolve)
+                        rej(resolve)
                     })
                     .catch((reject) => {
                         rej(reject)
                     })
                 }
-                res(JSON.parse(JSON.stringify(results)));
+                res(JSON.parse(JSON.stringify(results) || "{}"));
             });
         })
-
     }
 
     private reportFailure(error: string): Promise<number> {
@@ -50,10 +49,8 @@ export default class DBConnection {
             const ErrorJson: any = JSON.parse(error);
             this.connection.query(`INSERT INTO failures(DATE, CODE, ERRNO, ERROR) VALUES(NOW(), '${ErrorJson.code}', '${ErrorJson.errno}','${ErrorJson.sql}')`, (error: MysqlError | null, results?: any) => {
                 if(error) {
-                    console.error("Error reportando la falla");
                     reject(0);
                 }
-                console.log('results: ', results);
                 resolve(results.insertId)
             })
         })
