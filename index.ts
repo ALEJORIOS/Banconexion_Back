@@ -3,12 +3,15 @@ import express, { Express, Request, Response } from "express";
 import DBConnection from "./db";
 import { FieldInfo, MysqlError } from "mysql";
 import { Workbook } from "exceljs";
+import cors from "cors"
 
 configDotenv();
 
 const app: Express = express();
 
 app.use(express.json())
+
+app.use(cors());
 
 // Start Connection to DB
 

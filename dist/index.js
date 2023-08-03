@@ -7,9 +7,11 @@ const dotenv_1 = require("dotenv");
 const express_1 = __importDefault(require("express"));
 const db_1 = __importDefault(require("./db"));
 const exceljs_1 = require("exceljs");
+const cors_1 = __importDefault(require("cors"));
 (0, dotenv_1.configDotenv)();
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
+app.use((0, cors_1.default)());
 // Start Connection to DB
 app.listen(process.env.PORT, () => {
     console.log('Listening on port ', process.env.PORT);
