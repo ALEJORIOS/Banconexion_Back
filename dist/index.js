@@ -17,6 +17,23 @@ app.listen(process.env.PORT, () => {
     console.log('Listening on port ', process.env.PORT);
 });
 const dBConnection = new db_1.default("localhost", "banconexion", "root", "kp9ytz4Rmdz5");
+app.get("/check-maintenance", async (req, res) => {
+    const query = `SELECT * FROM params WHERE ATTRIBUTE = "MAINTENANCE"`;
+    await dBConnection.execQuery(query)
+        .then((resolve) => {
+        res.statusCode = 200;
+        res.send(resolve);
+    })
+        .catch((reject) => {
+        res.statusCode = 409;
+        if (reject) {
+            res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${reject}`);
+        }
+        else {
+            res.send(`Ocurrió un error al intentar consultar este registro. También ocurrió un error al crear la falla`);
+        }
+    });
+});
 /**
  * Register a new user
  * The admin value is 0 by default
