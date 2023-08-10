@@ -1,7 +1,6 @@
 import { configDotenv } from "dotenv";
 import express, { Express, Request, Response } from "express";
 import DBConnection from "./db";
-import { FieldInfo, MysqlError } from "mysql";
 import { Workbook } from "exceljs";
 import cors from "cors"
 
@@ -106,7 +105,8 @@ app.get("/user", async(req: Request, res: Response) => {
         p.NAME, 
         p.AGE, 
         p.TRANSPORT, 
-        p.ADMIN, 
+        p.ADMIN,
+        p.AREA,
         (select SUM(VALUE) FROM transactions WHERE USER = p.ID) AS BALANCE 
         FROM persons AS p
         WHERE (p.DOCUMENT = ${req.query.document} AND p.DOCUMENT_TYPE = "${req.query.type}") OR
