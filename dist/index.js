@@ -165,7 +165,7 @@ app.get("/fees", async (req, res) => {
     });
 });
 app.get("/all-users", async (req, res) => {
-    const query = `SELECT DOCUMENT_TYPE, DOCUMENT, NAME FROM persons`;
+    const query = `SELECT DOCUMENT_TYPE, DOCUMENT, NAME, AREA FROM persons`;
     await dBConnection.execQuery(query)
         .then((resolve) => {
         res.statusCode = 200;

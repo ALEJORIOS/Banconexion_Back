@@ -37,7 +37,6 @@ app.get("/check-maintenance", async(req: Request, res: Response) => {
     })
 })
 
-
 /**
  * Register a new user 
  * The admin value is 0 by default
@@ -172,7 +171,7 @@ app.get("/fees", async(req: Request, res: Response) => {
 })
 
 app.get("/all-users", async(req: Request, res: Response) => {
-    const query: string = `SELECT DOCUMENT_TYPE, DOCUMENT, NAME FROM persons`;
+    const query: string = `SELECT DOCUMENT_TYPE, DOCUMENT, NAME, AREA FROM persons`;
     await dBConnection.execQuery(query)
     .then((resolve) => {
         res.statusCode = 200;
