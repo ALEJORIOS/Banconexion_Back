@@ -105,9 +105,10 @@ app.get("/user", async(req: Request, res: Response) => {
         p.AGE, 
         p.TRANSPORT, 
         p.ADMIN,
-        p.AREA,
-        (select SUM(VALUE) FROM transactions WHERE USER = p.ID) AS BALANCE 
+        a.NAME,
+        (select SUM(VALUE) FROM transactions WHERE USER = p.ID) AS BALANCE,
         FROM persons AS p
+        JOIN areas AS a ON a.ABBR = p.AREA,
         WHERE (p.DOCUMENT = ${req.query.document} AND p.DOCUMENT_TYPE = "${req.query.type}") OR
         PARENT_RELATIONSHIP = (SELECT ID FROM persons AS p WHERE (p.DOCUMENT = ${req.query.document} AND p.DOCUMENT_TYPE = "${req.query.type}"))`;
     await dBConnection.execQuery(query)
@@ -246,6 +247,23 @@ app.put("/edit-transaction", async(req: Request, res: Response) => {
     })
 })
 
+app.get("/failures", async(req: Request, res: Response) => {
+    const query: string = `SELECT * FROM failures ORDER BY ID DESC`;
+    await dBConnection.execQuery(query)
+    .then((resolve) => {
+        res.statusCode = 200;
+        res.send(resolve);
+    })
+    .catch((reject) => {
+        res.statusCode = 409;
+        if(reject) {
+            res.send(`Ocurrió un error al ver los errores. ID del error: ${reject}`)
+        }else{
+            res.send(`Ocurrió un error al ver los errores. También ocurrió un error al crear la falla`)
+        }
+    })
+})
+
 app.get("/export-transactions", async(req: Request, res: Response) => {
     try {
         let workbook = new Workbook();
@@ -310,3 +328,4 @@ async function getTransactions() {
         return resolve
     })
 }
+
