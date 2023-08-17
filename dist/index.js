@@ -98,7 +98,7 @@ app.get("/user", async (req, res) => {
         p.AGE, 
         p.TRANSPORT, 
         p.ADMIN,
-        a.NAME,
+        a.NAME as AREA,
         (select SUM(VALUE) FROM transactions WHERE USER = p.ID) AS BALANCE
         FROM persons AS p
         JOIN areas AS a ON a.ABBR = p.AREA
