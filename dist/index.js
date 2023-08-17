@@ -99,9 +99,9 @@ app.get("/user", async (req, res) => {
         p.TRANSPORT, 
         p.ADMIN,
         a.NAME,
-        (select SUM(VALUE) FROM transactions WHERE USER = p.ID) AS BALANCE,
+        (select SUM(VALUE) FROM transactions WHERE USER = p.ID) AS BALANCE
         FROM persons AS p
-        JOIN areas AS a ON a.ABBR = p.AREA,
+        JOIN areas AS a ON a.ABBR = p.AREA
         WHERE (p.DOCUMENT = ${req.query.document} AND p.DOCUMENT_TYPE = "${req.query.type}") OR
         PARENT_RELATIONSHIP = (SELECT ID FROM persons AS p WHERE (p.DOCUMENT = ${req.query.document} AND p.DOCUMENT_TYPE = "${req.query.type}"))`;
     await dBConnection.execQuery(query)
