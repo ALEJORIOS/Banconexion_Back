@@ -39,7 +39,7 @@ app.get("/check-maintenance", async (req, res) => {
  * The admin value is 0 by default
  */
 app.post("/register", async (req, res) => {
-    const query = `INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, ADMIN) VALUES ("${req.body.name}", "${req.body.type}", "${req.body.document}", ${req.body.age}, ${req.body.transport}, 0)`;
+    const query = `INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN) VALUES ("${req.body.name}", "${req.body.type}", "${req.body.document}", ${req.body.age}, ${req.body.transport}, "${req.body.area}", 0)`;
     await dBConnection.execQuery(query)
         .then((resolve) => {
         res.statusCode = 200;
