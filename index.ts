@@ -248,7 +248,7 @@ app.put("/edit-transaction", async(req: Request, res: Response) => {
 })
 
 app.get("/failures", async(req: Request, res: Response) => {
-    const query: string = `SELECT * FROM failures ORDER BY ID DESC`;
+    const query: string = `SELECT * FROM failures ORDER BY ID DESC LIMIT ${req.query.skip},${req.query.limit}`;
     await dBConnection.execQuery(query)
     .then((resolve) => {
         res.statusCode = 200;
