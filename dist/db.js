@@ -3,58 +3,49 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const mysql_1 = __importDefault(require("mysql"));
+// import mysql, { Connection, FieldInfo, MysqlError } from "mysql"
+const postgres_1 = __importDefault(require("postgres"));
 class DBConnection {
-    connection;
-    constructor(host, database, user, password) {
-        this.connection = mysql_1.default.createConnection({
+    sql;
+    constructor(host, database, username, password) {
+        this.sql = (0, postgres_1.default)({
             host,
             database,
-            user,
+            username,
             password,
-            port: 3308
+            port: 5432,
+            ssl: true
         });
-        this.connect();
-    }
-    connect() {
-        this.connection.connect((error) => {
-            if (error) {
-                console.error('Error al crear una conexión a la base de datos');
-                console.error(error);
-            }
-            else {
-                console.log('Success Connection to MySql');
-            }
-        });
-    }
-    endConnection() {
-        this.connection.end();
+        console.log('Conectado');
     }
     async execQuery(query) {
-        return new Promise((res, rej) => {
-            this.connection.query(query, async (error, results, fields) => {
-                if (error) {
-                    await this.reportFailure(JSON.stringify(error)).then((resolve) => {
-                        rej(resolve);
-                    })
-                        .catch((reject) => {
-                        rej(reject);
-                    });
-                }
-                res(JSON.parse(JSON.stringify(results) || "{}"));
-            });
-        });
+        // return await this.connection`${query}`
+        // return new Promise<any>((res, rej) => {
+        //     this.connection.query(query, async(error: MysqlError | null, results?: any, fields?: FieldInfo[]) => {
+        //         if(error) {
+        //             await this.reportFailure(JSON.stringify(error)).then((resolve) => {
+        //                 rej(resolve)
+        //             })
+        //             .catch((reject) => {
+        //                 rej(reject)
+        //             })
+        //         }
+        //         res(JSON.parse(JSON.stringify(results) || "{}"));
+        //     });
+        // })
+        return new Promise((req, res) => { });
     }
     reportFailure(error) {
-        return new Promise((resolve, reject) => {
-            const ErrorJson = JSON.parse(error);
-            this.connection.query(`INSERT INTO failures(DATE, CODE, ERRNO, ERROR) VALUES(NOW(), '${ErrorJson.code}', '${ErrorJson.errno}','${ErrorJson.sql}')`, (error, results) => {
-                if (error) {
-                    reject(0);
-                }
-                resolve(results.insertId);
-            });
-        });
+        // return new Promise((resolve, reject) => {
+        // const ErrorJson: any = JSON.parse(error);
+        // this.connection.query(`INSERT INTO failures(DATE, CODE, ERRNO, ERROR) VALUES(NOW(), '${ErrorJson.code}', '${ErrorJson.errno}','${ErrorJson.sql}')`, (error: MysqlError | null, results?: any) => {
+        //     if(error) {
+        //         reject(0);
+        //     }
+        //         resolve(results.insertId)
+        //     })
+        // })
+        return new Promise((req, res) => { });
     }
 }
 exports.default = DBConnection;

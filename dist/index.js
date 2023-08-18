@@ -16,23 +16,43 @@ app.use((0, cors_1.default)());
 app.listen(process.env.PORT, () => {
     console.log('Listening on port ', process.env.PORT);
 });
-const dBConnection = new db_1.default("localhost", "banconexion", "root", "kp9ytz4Rmdz5");
-app.get("/check-maintenance", async (req, res) => {
-    const query = `SELECT * FROM params WHERE ATTRIBUTE = "MAINTENANCE"`;
-    await dBConnection.execQuery(query)
-        .then((resolve) => {
-        res.statusCode = 200;
-        res.send(resolve);
-    })
-        .catch((reject) => {
-        res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al intentar consultar este registro. También ocurrió un error al crear la falla`);
-        }
+const dBConnection = new db_1.default("ep-rough-sea-49693752-pooler.us-east-1.postgres.vercel-storage.com", "Banconexion", "default", "1lWYvjDu6hfL");
+async function sendError(err) {
+    return await dBConnection.sql `INSERT INTO FAILURES(DATE, ERROR) VALUES(NOW(),  ${err.toString()}) RETURNING ID;`
+        .then((response) => {
+        return response[0].id;
     });
+}
+/**
+ * Check if project is in maintenance mode
+ */
+app.get("/check-maintenance", async (req, res) => {
+    // const query: string = `SELECT * FROM params WHERE ATTRIBUTE = "MAINTENANCE"`;
+    await dBConnection.sql `SELECT * FROM "PARAMS WHERE ATTRIBUTE = 'MAINTENANCE';`
+        .then((response) => {
+        res.statusCode = 200;
+        res.send(response);
+    })
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
+    });
+    // res.send(await dBConnection.sql`SELECT * FROM "PARAMS WHERE ATTRIBUTE = 'MAINTENANCE';`);
+    // await dBConnection.execQuery(query)
+    // .then((resolve) => {
+    //     res.statusCode = 200;
+    //     res.send(resolve);
+    // })
+    // .catch((reject) => {
+    //     res.statusCode = 409;
+    //     if(reject) {
+    //         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${reject}`)
+    //     }else{
+    //         res.send(`Ocurrió un error al intentar consultar este registro. También ocurrió un error al crear la falla`)
+    //     }
+    // })
 });
 /**
  * Register a new user
