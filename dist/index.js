@@ -39,20 +39,6 @@ app.get("/check-maintenance", async (req, res) => {
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
-    // res.send(await dBConnection.sql`SELECT * FROM "PARAMS WHERE ATTRIBUTE = 'MAINTENANCE';`);
-    // await dBConnection.execQuery(query)
-    // .then((resolve) => {
-    //     res.statusCode = 200;
-    //     res.send(resolve);
-    // })
-    // .catch((reject) => {
-    //     res.statusCode = 409;
-    //     if(reject) {
-    //         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${reject}`)
-    //     }else{
-    //         res.send(`Ocurrió un error al intentar consultar este registro. También ocurrió un error al crear la falla`)
-    //     }
-    // })
 });
 /**
  * Register a new user
@@ -61,52 +47,43 @@ app.get("/check-maintenance", async (req, res) => {
 app.post("/register", async (req, res) => {
     const query = `INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN) VALUES ("${req.body.name}", "${req.body.type}", "${req.body.document}", ${req.body.age}, ${req.body.transport}, "${req.body.area}", 0)`;
     await dBConnection.execQuery(query)
-        .then((resolve) => {
+        .then((response) => {
         res.statusCode = 200;
-        res.send(resolve);
+        res.send(response);
     })
-        .catch((reject) => {
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
         res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al intentar crear este registro. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al intentar crear este registro. También ocurrió un error al crear la falla`);
-        }
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
 app.put("/edit-user", async (req, res) => {
     const query = `UPDATE persons SET NAME="${req.body.name}", DOCUMENT_TYPE="${req.body.type}", DOCUMENT="${req.body.document}", AGE=${req.body.age}, TRANSPORT=${req.body.transport} WHERE ID=${req.query.id}`;
     await dBConnection.execQuery(query)
-        .then((resolve) => {
+        .then((response) => {
         res.statusCode = 200;
-        res.send(resolve);
+        res.send(response);
     })
-        .catch((reject) => {
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
         res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al intentar editar este registro. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al intentar editar este registro. También ocurrió un error al crear la falla`);
-        }
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
 app.delete("/delete-user", async (req, res) => {
     const query = `DELETE FROM persons WHERE ID=${req.query.id} AND (SELECT SUM(VALUE) FROM transactions WHERE transactions.USER = ${req.query.id}) IS NULL`;
     await dBConnection.execQuery(query)
-        .then((resolve) => {
+        .then((response) => {
         res.statusCode = 200;
-        res.send(resolve);
+        res.send(response);
     })
-        .catch((reject) => {
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
         res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al intentar eliminar este registro. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al intentar eliminar este registro. También ocurrió un error al crear la falla`);
-        }
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
 app.get("/user", async (req, res) => {
@@ -125,42 +102,30 @@ app.get("/user", async (req, res) => {
         WHERE (p.DOCUMENT = ${req.query.document} AND p.DOCUMENT_TYPE = "${req.query.type}") OR
         PARENT_RELATIONSHIP = (SELECT ID FROM persons AS p WHERE (p.DOCUMENT = ${req.query.document} AND p.DOCUMENT_TYPE = "${req.query.type}"))`;
     await dBConnection.execQuery(query)
-        .then((resolve) => {
+        .then((response) => {
         res.statusCode = 200;
-        res.send(resolve);
+        res.send(response);
     })
-        .catch((reject) => {
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
         res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al intentar enviar este registro. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al intentar enviar este registro. También ocurrió un error al crear la falla`);
-        }
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
 app.post("/login", async (req, res) => {
     const query = `SELECT * FROM persons
     WHERE USER = "${req.body.user}" AND PASSWORD = "${req.body.password}" AND DOCUMENT = ${req.body.document}`;
     await dBConnection.execQuery(query)
-        .then((resolve) => {
-        if (resolve.length > 0) {
-            res.statusCode = 200;
-            res.send("OK");
-        }
-        else {
-            res.statusCode = 401;
-            res.send("Usuario o contraseña erróneo");
-        }
+        .then((response) => {
+        res.statusCode = 200;
+        res.send(response);
     })
-        .catch((reject) => {
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
         res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al intentar enviar este registro. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al intentar enviar este registro. También ocurrió un error al crear la falla`);
-        }
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
 app.get("/fees", async (req, res) => {
@@ -171,35 +136,29 @@ app.get("/fees", async (req, res) => {
         ATTRIBUTE = "TARIFA_MENOR" OR 
         ATTRIBUTE = "TRANSPORTE")`;
     await dBConnection.execQuery(query)
-        .then((resolve) => {
+        .then((response) => {
         res.statusCode = 200;
-        res.send(resolve);
+        res.send(response);
     })
-        .catch((reject) => {
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
         res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al intentar buscar este registro. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al intentar buscar este registro. También ocurrió un error al crear la falla`);
-        }
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
 app.get("/all-users", async (req, res) => {
     const query = `SELECT DOCUMENT_TYPE, DOCUMENT, NAME, AREA FROM persons`;
     await dBConnection.execQuery(query)
-        .then((resolve) => {
+        .then((response) => {
         res.statusCode = 200;
-        res.send(resolve);
+        res.send(response);
     })
-        .catch((reject) => {
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
         res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al intentar buscar estos registro. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al intentar buscar estos registro. También ocurrió un error al crear la falla`);
-        }
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
 app.post("/payment", async (req, res) => {
@@ -210,18 +169,15 @@ app.post("/payment", async (req, res) => {
         (SELECT ID FROM persons WHERE DOCUMENT_TYPE = "${req.body.authorizedBy.type}" AND DOCUMENT = "${req.body.authorizedBy.document}"), 
         ${req.body.donation})`;
     await dBConnection.execQuery(query)
-        .then((resolve) => {
+        .then((response) => {
         res.statusCode = 200;
-        res.send(resolve);
+        res.send(response);
     })
-        .catch((reject) => {
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
         res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al realizar este abono. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al realizar este abono. También ocurrió un error al crear la falla`);
-        }
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
 app.get("/transactions", async (req, res) => {
@@ -229,54 +185,54 @@ app.get("/transactions", async (req, res) => {
     LEFT JOIN persons as p1 ON tr.USER = p1.ID
     LEFT JOIN persons as p2 ON tr.AUTHORIZED_BY = p2.ID`;
     await dBConnection.execQuery(query)
-        .then((resolve) => {
+        .then((response) => {
         res.statusCode = 200;
-        res.send(resolve);
+        res.send(response);
     })
-        .catch((reject) => {
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
         res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al ver las transacciones. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al ver las transacciones. También ocurrió un error al crear la falla`);
-        }
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
 app.put("/edit-transaction", async (req, res) => {
     const query = `UPDATE transactions SET VALUE = ${req.body.value}, DONATION = ${req.body.donation} WHERE ID = ${req.query.id}`;
     await dBConnection.execQuery(query)
-        .then((resolve) => {
+        .then((response) => {
         res.statusCode = 200;
-        res.send(resolve);
+        res.send(response);
     })
-        .catch((reject) => {
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
         res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al editar esta transacción. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al editar esta transacción. También ocurrió un error al crear la falla`);
-        }
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
 app.get("/failures", async (req, res) => {
     const query = `SELECT * FROM failures ORDER BY ID DESC LIMIT ${req.query.skip || 0},${req.query.limit || 20}`;
     await dBConnection.execQuery(query)
-        .then((resolve) => {
+        .then((response) => {
         res.statusCode = 200;
-        res.send(resolve);
+        res.send(response);
     })
-        .catch((reject) => {
+        .catch(async (err) => {
+        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
         res.statusCode = 409;
-        if (reject) {
-            res.send(`Ocurrió un error al ver los errores. ID del error: ${reject}`);
-        }
-        else {
-            res.send(`Ocurrió un error al ver los errores. También ocurrió un error al crear la falla`);
-        }
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
+async function getTransactions() {
+    const query = `SELECT tr.ID, tr.DATE, tr.VALUE, tr.USER, p1.DOCUMENT_TYPE, p1.DOCUMENT, p1.NAME, p2.NAME AS AUTHORIZED_BY, tr.DONATION FROM transactions as tr
+    LEFT JOIN persons as p1 ON tr.USER = p1.ID
+    LEFT JOIN persons as p2 ON tr.AUTHORIZED_BY = p2.ID`;
+    return await dBConnection.execQuery(query)
+        .then((resolve) => {
+        return resolve;
+    });
+}
 app.get("/export-transactions", async (req, res) => {
     try {
         let workbook = new exceljs_1.Workbook();
@@ -309,22 +265,4 @@ app.get("/export-transactions", async (req, res) => {
     catch (error) {
         console.error(error);
     }
-    // "ID": 6,
-    // "DATE": "2023-08-02T21:58:24.000Z",
-    // "VALUE": 100,
-    // "USER": 9,
-    // "DOCUMENT_TYPE": "CC",
-    // "DOCUMENT": "1032488686",
-    // "NAME": "Alejandro Rios",
-    // "AUTHORIZED_BY": "Nicole Soto",
-    // "DONATION": 0
 });
-async function getTransactions() {
-    const query = `SELECT tr.ID, tr.DATE, tr.VALUE, tr.USER, p1.DOCUMENT_TYPE, p1.DOCUMENT, p1.NAME, p2.NAME AS AUTHORIZED_BY, tr.DONATION FROM transactions as tr
-    LEFT JOIN persons as p1 ON tr.USER = p1.ID
-    LEFT JOIN persons as p2 ON tr.AUTHORIZED_BY = p2.ID`;
-    return await dBConnection.execQuery(query)
-        .then((resolve) => {
-        return resolve;
-    });
-}
