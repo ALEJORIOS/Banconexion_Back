@@ -20,6 +20,13 @@ app.listen(process.env.PORT, () => {
 
 const dBConnection = new DBConnection("ep-rough-sea-49693752-pooler.us-east-1.postgres.vercel-storage.com", "Banconexion", "default", "1lWYvjDu6hfL");
 
+const upperize = (obj: any) =>
+  Object.keys(obj).reduce((acc: any, k) => {
+    acc[k.toUpperCase()] = obj[k];
+    return acc;
+  }, {});
+
+
 async function sendError(err: string): Promise<number> {
     return await dBConnection.sql`INSERT INTO FAILURES(DATE, ERROR) VALUES(NOW(),  ${err.toString()}) RETURNING ID;`
     .then((response) => {
@@ -31,14 +38,40 @@ async function sendError(err: string): Promise<number> {
  * Check if project is in maintenance mode
  */
 app.get("/check-maintenance", async(req: Request, res: Response) => {
-    // const query: string = `SELECT * FROM params WHERE ATTRIBUTE = "MAINTENANCE"`;
-    await dBConnection.sql`SELECT * FROM "PARAMS WHERE ATTRIBUTE = 'MAINTENANCE';`
-    .then((response) => {
+    await dBConnection.sql`SELECT * FROM params WHERE attribute = 'MAINTENANCE';`
+    .then((response: any) => {
         res.statusCode = 200;
-        res.send(response)
+        res.send([upperize(response)]);
     })
     .catch(async(err) => {
-        console.log('Entra a enviar el error');
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
+    })
+})
+
+app.get("/user", async(req: Request, res: Response) => {
+    const document: string = req.query.document as string;
+    const type: string = req.query.type as string;
+    await dBConnection.sql`SELECT 
+    p.id, 
+    p.document_type, 
+    p.document, 
+    p.name, 
+    p.age, 
+    p.transport, 
+    p.admin,
+    a.name as area,
+    (select SUM(value) FROM transactions WHERE "userID" = p.ID) AS balance
+    FROM persons AS p
+    JOIN areas AS a ON a.abbr = p.area
+    WHERE (p.document = ${document} AND p.document_type = ${type}) OR
+    (SELECT id FROM persons AS p WHERE (p.document = ${document} AND p.document_type= ${type})) = ANY (PARENT_RELATIONSHIP);`
+    .then((response) => {
+        res.statusCode = 200;
+        res.send(response.map(user => upperize(user)))
+    })
+    .catch(async(err) => {
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
@@ -57,7 +90,6 @@ app.post("/register", async(req: Request, res: Response) => {
         res.send(response)
     })
     .catch(async(err) => {
-        console.log('Entra a enviar el error');
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
@@ -72,7 +104,6 @@ app.put("/edit-user", async(req: Request, res: Response) => {
         res.send(response)
     })
     .catch(async(err) => {
-        console.log('Entra a enviar el error');
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
@@ -87,51 +118,22 @@ app.delete("/delete-user", async(req: Request, res: Response) => {
         res.send(response)
     })
     .catch(async(err) => {
-        console.log('Entra a enviar el error');
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     })
 })
 
-app.get("/user", async(req: Request, res: Response) => {
-    const query: string = `SELECT 
-        p.ID, 
-        p.DOCUMENT_TYPE, 
-        p.DOCUMENT, 
-        p.NAME, 
-        p.AGE, 
-        p.TRANSPORT, 
-        p.ADMIN,
-        a.NAME as AREA,
-        (select SUM(VALUE) FROM transactions WHERE USER = p.ID) AS BALANCE
-        FROM persons AS p
-        JOIN areas AS a ON a.ABBR = p.AREA
-        WHERE (p.DOCUMENT = ${req.query.document} AND p.DOCUMENT_TYPE = "${req.query.type}") OR
-        PARENT_RELATIONSHIP = (SELECT ID FROM persons AS p WHERE (p.DOCUMENT = ${req.query.document} AND p.DOCUMENT_TYPE = "${req.query.type}"))`;
-    await dBConnection.execQuery(query)
-    .then((response) => {
-        res.statusCode = 200;
-        res.send(response)
-    })
-    .catch(async(err) => {
-        console.log('Entra a enviar el error');
-        const errID = await sendError(err);
-        res.statusCode = 409;
-        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
-    })
-})
 
 app.post("/login", async(req: Request, res: Response) => {
-    const query: string = `SELECT * FROM persons
-    WHERE USER = "${req.body.user}" AND PASSWORD = "${req.body.password}" AND DOCUMENT = ${req.body.document}`
+    const query: string = `SELECT * FROM "PERSONS"
+    WHERE USER = '${req.body.user}' AND PASSWORD = '${req.body.password}' AND DOCUMENT = ${req.body.document};`
     await dBConnection.execQuery(query)
     .then((response) => {
         res.statusCode = 200;
         res.send(response)
     })
     .catch(async(err) => {
-        console.log('Entra a enviar el error');
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
@@ -151,7 +153,6 @@ app.get("/fees", async(req: Request, res: Response) => {
         res.send(response)
     })
     .catch(async(err) => {
-        console.log('Entra a enviar el error');
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
@@ -166,7 +167,6 @@ app.get("/all-users", async(req: Request, res: Response) => {
         res.send(response)
     })
     .catch(async(err) => {
-        console.log('Entra a enviar el error');
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
@@ -187,7 +187,6 @@ app.post("/payment", async(req: Request, res: Response) => {
         res.send(response)
     })
     .catch(async(err) => {
-        console.log('Entra a enviar el error');
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
@@ -204,7 +203,6 @@ app.get("/transactions", async(req: Request, res: Response) => {
         res.send(response)
     })
     .catch(async(err) => {
-        console.log('Entra a enviar el error');
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
@@ -219,7 +217,6 @@ app.put("/edit-transaction", async(req: Request, res: Response) => {
         res.send(response)
     })
     .catch(async(err) => {
-        console.log('Entra a enviar el error');
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
@@ -234,7 +231,6 @@ app.get("/failures", async(req: Request, res: Response) => {
         res.send(response)
     })
     .catch(async(err) => {
-        console.log('Entra a enviar el error');
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
@@ -250,6 +246,7 @@ async function getTransactions() {
         return resolve
     })
 }
+
 app.get("/export-transactions", async(req: Request, res: Response) => {
     try {
         let workbook = new Workbook();
