@@ -127,16 +127,15 @@ app.post("/login", async (req, res) => {
     });
 });
 app.get("/fees", async (req, res) => {
-    const query = `SELECT * FROM params WHERE 
-        (ATTRIBUTE = "TARIFA_COMPLETA" OR 
-        ATTRIBUTE = "TARIFA_NINO" OR 
-        ATTRIBUTE = "TARIFA_BEBE" OR 
-        ATTRIBUTE = "TARIFA_MENOR" OR 
-        ATTRIBUTE = "TRANSPORTE")`;
-    await dBConnection.execQuery(query)
+    dBConnection.sql `SELECT * FROM params WHERE 
+        (ATTRIBUTE = 'TARIFA_COMPLETA' OR 
+        ATTRIBUTE = 'TARIFA_NINO' OR 
+        ATTRIBUTE = 'TARIFA_BEBE' OR 
+        ATTRIBUTE = 'TARIFA_MENOR' OR 
+        ATTRIBUTE = 'TRANSPORT')`
         .then((response) => {
         res.statusCode = 200;
-        res.send(response);
+        res.send(response.map(res => upperize(res)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
