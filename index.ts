@@ -223,11 +223,12 @@ app.put("/edit-transaction", async(req: Request, res: Response) => {
 })
 
 app.get("/failures", async(req: Request, res: Response) => {
-    const query: string = `SELECT * FROM failures ORDER BY ID DESC LIMIT ${req.query.skip || 0},${req.query.limit || 20}`;
-    await dBConnection.execQuery(query)
+    dBConnection.sql`SELECT * FROM failures 
+    ORDER BY ID DESC 
+    LIMIT ${req.query.limit as never || 20} OFFSET ${req.query.skip as never || 5};`
     .then((response) => {
         res.statusCode = 200;
-        res.send(response)
+        res.send(response.map(res => upperize(res)))
     })
     .catch(async(err) => {
         const errID = await sendError(err);

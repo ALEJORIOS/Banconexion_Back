@@ -203,11 +203,12 @@ app.put("/edit-transaction", async (req, res) => {
     });
 });
 app.get("/failures", async (req, res) => {
-    const query = `SELECT * FROM failures ORDER BY ID DESC LIMIT ${req.query.skip || 0},${req.query.limit || 20}`;
-    await dBConnection.execQuery(query)
+    dBConnection.sql `SELECT * FROM failures 
+    ORDER BY ID DESC 
+    LIMIT ${req.query.limit || 20} OFFSET ${req.query.skip || 5};`
         .then((response) => {
         res.statusCode = 200;
-        res.send(response);
+        res.send(response.map(res => upperize(res)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
