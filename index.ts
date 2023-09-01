@@ -36,12 +36,13 @@ async function sendError(err: string): Promise<number> {
 
 /**
  * Check if project is in maintenance mode
+ * @tested true
  */
 app.get("/check-maintenance", async(req: Request, res: Response) => {
     await dBConnection.sql`SELECT * FROM params WHERE attribute = 'MAINTENANCE';`
     .then((response: any) => {
         res.statusCode = 200;
-        res.send([upperize(response)]);
+        res.send([upperize(response[0])]);
     })
     .catch(async(err) => {
         const errID = await sendError(err);
@@ -50,23 +51,19 @@ app.get("/check-maintenance", async(req: Request, res: Response) => {
     })
 })
 
+/**
+* Get all data user including their covers
+* @returns and array of objects
+* @tested tested for one person
+*/
+
 app.get("/user", async(req: Request, res: Response) => {
     const document: string = req.query.document as string;
     const type: string = req.query.type as string;
-    await dBConnection.sql`SELECT 
-    p.id, 
-    p.document_type, 
-    p.document, 
-    p.name, 
-    p.age, 
-    p.transport, 
-    p.admin,
-    a.name as area,
-    (select SUM(value) FROM transactions WHERE "userID" = p.ID) AS balance
-    FROM persons AS p
-    JOIN areas AS a ON a.abbr = p.area
-    WHERE (p.document = ${document} AND p.document_type = ${type}) OR
-    (SELECT id FROM persons AS p WHERE (p.document = ${document} AND p.document_type= ${type})) = ANY (PARENT_RELATIONSHIP);`
+    await dBConnection.sql`SELECT * 
+    FROM userview
+    WHERE (document = ${document} AND document_type = ${type}) OR
+    (SELECT id FROM persons WHERE (document = ${document} AND document_type= ${type})) = ANY (PARENT_RELATIONSHIP);`
     .then((response) => {
         res.statusCode = 200;
         res.send(response.map(user => upperize(user)))
@@ -81,13 +78,21 @@ app.get("/user", async(req: Request, res: Response) => {
 /**
  * Register a new user 
  * The admin value is 0 by default
+ * @param name - string
+ * @param type - string
+ * @param document - string
+ * @param age - number
+ * @param transport - 1 0
+ * @param area - string
+ * 
+ * @returns an array with the new record
+ * @tested true
  */
 app.post("/register", async(req: Request, res: Response) => {
-    const query: string = `INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN) VALUES ("${req.body.name}", "${req.body.type}", "${req.body.document}", ${req.body.age}, ${req.body.transport}, "${req.body.area}", 0)`;
-    await dBConnection.execQuery(query)
+    await dBConnection.sql`INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.transport}, ${req.body.area}, 0) RETURNING *;`
     .then((response) => {
         res.statusCode = 200;
-        res.send(response)
+        res.send(upperize(response[0]))
     })
     .catch(async(err) => {
         const errID = await sendError(err);
@@ -96,12 +101,23 @@ app.post("/register", async(req: Request, res: Response) => {
     })
 })
 
+/**
+ * Edit the user by ID 
+ * @param name - string
+ * @param type - string
+ * @param document - string
+ * @param age - number
+ * @param transport - 1 0
+ * @param area - string
+ * @param id - number
+ * @returns an array with the record
+ * @tested true
+ */
 app.put("/edit-user", async(req: Request, res: Response) => {
-    const query: string = `UPDATE persons SET NAME="${req.body.name}", DOCUMENT_TYPE="${req.body.type}", DOCUMENT="${req.body.document}", AGE=${req.body.age}, TRANSPORT=${req.body.transport} WHERE ID=${req.query.id}`;
-    await dBConnection.execQuery(query)
+    await dBConnection.sql`UPDATE persons SET NAME=${req.body.name}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area} WHERE ID=${req.query.id as string} RETURNING *;`
     .then((response) => {
         res.statusCode = 200;
-        res.send(response)
+        res.send(upperize(response[0]))
     })
     .catch(async(err) => {
         const errID = await sendError(err);
@@ -109,10 +125,16 @@ app.put("/edit-user", async(req: Request, res: Response) => {
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     })
 })
+
+/**
+ * Delete user if he/she hasn't transactions (Is not recommended for use)
+ * @param id - number
+ * @returns an empty array
+ * @tested true
+ */
 
 app.delete("/delete-user", async(req: Request, res: Response) => {
-    const query: string = `DELETE FROM persons WHERE ID=${req.query.id} AND (SELECT SUM(VALUE) FROM transactions WHERE transactions.USER = ${req.query.id}) IS NULL`;
-    await dBConnection.execQuery(query)
+    await dBConnection.sql`DELETE FROM persons WHERE ID=${req.query.id as string} AND (SELECT SUM(VALUE) FROM transactions WHERE transactions."userID" = ${req.query.id as string}) IS NULL RETURNING *;`
     .then((response) => {
         res.statusCode = 200;
         res.send(response)
@@ -124,14 +146,19 @@ app.delete("/delete-user", async(req: Request, res: Response) => {
     })
 })
 
-
+/**
+ * Second login to admin user
+ * @param password - string
+ * @param document - string
+ * @param type - string
+ * @returns the data of the person connected
+ * @tested true
+ */
 app.post("/login", async(req: Request, res: Response) => {
-    const query: string = `SELECT * FROM "PERSONS"
-    WHERE USER = '${req.body.user}' AND PASSWORD = '${req.body.password}' AND DOCUMENT = ${req.body.document};`
-    await dBConnection.execQuery(query)
+    await dBConnection.sql`SELECT * FROM persons WHERE PASSWORD = ${req.body.password} AND DOCUMENT = ${req.body.document} AND DOCUMENT_TYPE = ${req.body.type};`
     .then((response) => {
         res.statusCode = 200;
-        res.send(response)
+        res.send(upperize(response[0]))
     })
     .catch(async(err) => {
         const errID = await sendError(err);
@@ -139,14 +166,15 @@ app.post("/login", async(req: Request, res: Response) => {
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     })
 })
+
+/**
+ * Obtain all the fees and transport value
+ * @return array of object
+ * @tested true
+ */
 
 app.get("/fees", async(req: Request, res: Response) => {
-    dBConnection.sql`SELECT * FROM params WHERE 
-        (ATTRIBUTE = 'TARIFA_COMPLETA' OR 
-        ATTRIBUTE = 'TARIFA_NINO' OR 
-        ATTRIBUTE = 'TARIFA_BEBE' OR 
-        ATTRIBUTE = 'TARIFA_MENOR' OR 
-        ATTRIBUTE = 'TRANSPORT')`
+    dBConnection.sql`SELECT * FROM fees`
     .then((response) => {
         res.statusCode = 200;
         res.send(response.map(res => upperize(res)))
@@ -158,12 +186,17 @@ app.get("/fees", async(req: Request, res: Response) => {
     })
 })
 
+/**
+ * See all users
+ * @returns array of objects
+ * @tested true
+ */
+
 app.get("/all-users", async(req: Request, res: Response) => {
-    const query: string = `SELECT DOCUMENT_TYPE, DOCUMENT, NAME, AREA FROM persons`;
-    await dBConnection.execQuery(query)
+    await dBConnection.sql`SELECT DOCUMENT_TYPE, DOCUMENT, NAME, AREA FROM persons;`
     .then((response) => {
         res.statusCode = 200;
-        res.send(response)
+        res.send(response.map(res => upperize(res)))
     })
     .catch(async(err) => {
         const errID = await sendError(err);
@@ -171,19 +204,25 @@ app.get("/all-users", async(req: Request, res: Response) => {
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     })
 })
+
+/**
+ * Add a new transaction
+ * @param value - number
+ * @param type - string
+ * @param document - string
+ * @param authorizedBy - object
+ *  @param type - stirng
+ *  @param document - string
+ * @param donation 1 0
+ * @returns the record recently inserted
+ * @tested true
+ */
 
 app.post("/payment", async(req: Request, res: Response) => {
-    const query: string = `INSERT INTO transactions(DATE, VALUE, USER, AUTHORIZED_BY, DONATION) 
-    VALUES(NOW(), 
-        ${req.body.value}, 
-        (SELECT ID FROM persons WHERE DOCUMENT_TYPE = "${req.body.type}" AND DOCUMENT = "${req.body.document}"), 
-        (SELECT ID FROM persons WHERE DOCUMENT_TYPE = "${req.body.authorizedBy.type}" AND DOCUMENT = "${req.body.authorizedBy.document}"), 
-        ${req.body.donation})`;
-
-    await dBConnection.execQuery(query)
+    await dBConnection.sql`INSERT INTO transactions(DATE, VALUE, "userID", AUTHORIZED, DONATION, CONFIRMED) VALUES(NOW(), ${req.body.value}, (SELECT ID FROM persons WHERE DOCUMENT_TYPE = ${req.body.type} AND DOCUMENT = ${req.body.document}), (SELECT ID FROM persons WHERE DOCUMENT_TYPE = ${req.body.authorizedBy.type} AND DOCUMENT = ${req.body.authorizedBy.document}), ${req.body.donation}, 0) RETURNING *;`
     .then((response) => {
         res.statusCode = 200;
-        res.send(response)
+        res.send(upperize(response[0]))
     })
     .catch(async(err) => {
         const errID = await sendError(err);
@@ -191,15 +230,18 @@ app.post("/payment", async(req: Request, res: Response) => {
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     })
 })
+
+/**
+ * See all transactions
+ * @returns array of object
+ * @tested true
+ */
 
 app.get("/transactions", async(req: Request, res: Response) => {
-    const query: string = `SELECT tr.ID, tr.DATE, tr.VALUE, tr.USER, p1.DOCUMENT_TYPE, p1.DOCUMENT, p1.NAME, p2.NAME AS AUTHORIZED_BY, tr.DONATION FROM transactions as tr
-    LEFT JOIN persons as p1 ON tr.USER = p1.ID
-    LEFT JOIN persons as p2 ON tr.AUTHORIZED_BY = p2.ID`;
-    await dBConnection.execQuery(query)
+    await dBConnection.sql`SELECT * FROM transactionsView`
     .then((response) => {
         res.statusCode = 200;
-        res.send(response)
+        res.send(response.map(res => upperize(res)))
     })
     .catch(async(err) => {
         const errID = await sendError(err);
@@ -208,12 +250,38 @@ app.get("/transactions", async(req: Request, res: Response) => {
     })
 })
 
+/**
+ * Return only the transactions of my group
+ * @param id - number
+ * @returns array of objects
+ * @tested true
+ */
+app.get("/filtered-transactions", async(req: Request, res: Response) => {
+    await dBConnection.sql`SELECT * FROM transactionsView t LEFT JOIN persons p ON t."userID" = p.id WHERE ("userID" = ${req.query.id as string} OR ${req.query.id as string} = ANY (PARENT_RELATIONSHIP));`
+    .then((response) => {
+        res.statusCode = 200;
+        res.send(response.map(res => upperize(res)))
+    })
+    .catch(async(err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
+    })
+})
+
+/**
+ * Edit a transaction value or donation status
+ * @param id - number
+ * @param value - number
+ * @param donation - 1 0
+ * @returns the recently edited record
+ * @tested true
+ */
 app.put("/edit-transaction", async(req: Request, res: Response) => {
-    const query: string = `UPDATE transactions SET VALUE = ${req.body.value}, DONATION = ${req.body.donation} WHERE ID = ${req.query.id}`;
-    await dBConnection.execQuery(query)
+    await dBConnection.sql`UPDATE transactions SET VALUE = ${req.body.value}, DONATION = ${req.body.donation} WHERE ID = ${req.query.id as string} RETURNING *;`
     .then((response) => {
         res.statusCode = 200;
-        res.send(response)
+        res.send(upperize(response[0]))
     })
     .catch(async(err) => {
         const errID = await sendError(err);
@@ -222,6 +290,13 @@ app.put("/edit-transaction", async(req: Request, res: Response) => {
     })
 })
 
+
+/**
+ * See all failures of the app
+ * @param limit - number
+ * @param skip - number
+ * @tested true
+ */
 app.get("/failures", async(req: Request, res: Response) => {
     dBConnection.sql`SELECT * FROM failures 
     ORDER BY ID DESC 
@@ -237,41 +312,48 @@ app.get("/failures", async(req: Request, res: Response) => {
     })
 })
 
-async function getTransactions() {
-    const query: string = `SELECT tr.ID, tr.DATE, tr.VALUE, tr.USER, p1.DOCUMENT_TYPE, p1.DOCUMENT, p1.NAME, p2.NAME AS AUTHORIZED_BY, tr.DONATION FROM transactions as tr
-    LEFT JOIN persons as p1 ON tr.USER = p1.ID
-    LEFT JOIN persons as p2 ON tr.AUTHORIZED_BY = p2.ID`;
-    return await dBConnection.execQuery(query)
+/**
+ * Auxiliar function for transactions excel
+ */
+async function getTransactions(): Promise<any> {
+    return await dBConnection.sql`SELECT * FROM transactionsview;`
     .then((resolve) => {
         return resolve
     })
 }
 
+/**
+ * Export all transactions as an excel
+ * @returns an excel file
+ * @tested true
+ */
 app.get("/export-transactions", async(req: Request, res: Response) => {
     try {
         let workbook = new Workbook();
 
         const sheet = workbook.addWorksheet("transacciones");
         sheet.columns = [
-            {header: "Fecha", key: "DATE", width: 25},
-            {header: "Tipo_Documento", key: "DOCUMENT_TYPE", width: 10},
-            {header: "Documento", key: "DOCUMENT", width: 12},
-            {header: "Nombre", key: "NAME", width: 25},
-            {header: "Valor", key: "VALUE", width: 10},
-            {header: "Autoriza", key: "AUTHORIZED_BY", width: 25},
-            {header: "Donacion", key: "DONATION", width: 5}
+            {header: "Fecha", key: "date", width: 25},
+            {header: "Tipo_Documento", key: "document_type", width: 10},
+            {header: "Documento", key: "document", width: 12},
+            {header: "Nombre", key: "name", width: 25},
+            {header: "Valor", key: "value", width: 10},
+            {header: "Autoriza", key: "authorized_by", width: 25},
+            {header: "Donacion", key: "donation", width: 5},
+            {header: "Confirmado", key: "confirmed", width: 5}
         ]
     
         const OBJECT = await getTransactions();      
         await OBJECT.map((value: any, index: number) => {
             sheet.addRow({
-                DATE: value.DATE,
-                DOCUMENT_TYPE: value.DOCUMENT_TYPE,
-                DOCUMENT: value.DOCUMENT,
-                NAME: value.NAME,
-                VALUE: value.VALUE,
-                AUTHORIZED_BY: value.AUTHORIZED_BY,
-                DONATION: value.DONATION === 1 ? "Sí" : "No"
+                date: value.date,
+                document_type: value.document_type,
+                document: value.document,
+                name: value.name,
+                value: value.value,
+                authorized_by: value.authorized_by,
+                donation: value.donation === 1 ? "Sí" : "No",
+                confirmed: value.confirmed === 1 ? "Sí" : "No"
             })
         })
 
@@ -282,7 +364,7 @@ app.get("/export-transactions", async(req: Request, res: Response) => {
 
         res.setHeader(
             "Content-Disposition",
-            "attachment;filename=" + "transactions.xlsx"
+            "attachment;filename=" + "transacciones.xlsx"
         )
 
         workbook.xlsx.write(res);
@@ -290,7 +372,4 @@ app.get("/export-transactions", async(req: Request, res: Response) => {
     } catch (error) {
         console.error(error);
     }
-
 })
-
-
