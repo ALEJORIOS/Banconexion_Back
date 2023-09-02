@@ -79,7 +79,7 @@ app.get("/user", async (req, res) => {
  * @tested true
  */
 app.post("/register", async (req, res) => {
-    await dBConnection.sql `INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.transport}, ${req.body.area}, 0) RETURNING *;`
+    await dBConnection.sql `INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN, GUEST) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}) RETURNING *;`
         .then((response) => {
         res.statusCode = 200;
         res.send(upperize(response[0]));
@@ -112,6 +112,83 @@ app.put("/edit-user", async (req, res) => {
         const errID = await sendError(err);
         res.statusCode = 409;
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
+    });
+});
+/**
+ * Get the campist of all the area
+ * @param area - string
+ * @returns array of objects
+ * @tested true
+ */
+app.get("/area", async (req, res) => {
+    await dBConnection.sql `SELECT * FROM userview WHERE area = (SELECT name FROM areas WHERE abbr = ${req.query.area});`
+        .then((response) => {
+        res.statusCode = 200;
+        res.send(response);
+    })
+        .catch(async (err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar consultar estos registros. ID del error: ${errID}`);
+    });
+});
+/**
+ * Get all the relations of a camper
+ * @param document - string
+ * @param type - string
+ * @returns array of objects
+ * @tested true
+ */
+app.get("/relationships", async (req, res) => {
+    await dBConnection.sql `SELECT * FROM userview WHERE (SELECT id FROM persons WHERE (document = ${req.query.document} AND document_type= ${req.query.type})) = ANY (PARENT_RELATIONSHIP);`
+        .then((response) => {
+        res.statusCode = 200;
+        res.send(response);
+    })
+        .catch(async (err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar consultar estos registros. ID del error: ${errID}`);
+    });
+});
+/**
+ * Add children to user
+ * @param children - string[]
+ * @param id - number
+ * @returns array of objects updated
+ * @tested true
+ */
+app.post("/relationships", async (req, res) => {
+    const where = req.body.children;
+    await dBConnection.sql `UPDATE persons SET parent_relationship = array_append(parent_relationship, ${+req.body.id}) WHERE id IN ${dBConnection.sql(where)} RETURNING *;`
+        .then((response) => {
+        res.statusCode = 200;
+        res.send(response);
+    })
+        .catch(async (err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar agregar a estos registros. ID del error: ${errID}`);
+    });
+});
+/**
+ * Remove children to user
+ * @param children - string[]
+ * @param id - number
+ * @returns array of objects updated
+ * @tested true
+ */
+app.put("/relationships", async (req, res) => {
+    const where = req.body.children;
+    await dBConnection.sql `UPDATE persons SET parent_relationship = array_remove(parent_relationship, ${+req.body.id}) WHERE id IN ${dBConnection.sql(where)} RETURNING *;`
+        .then((response) => {
+        res.statusCode = 200;
+        res.send(response);
+    })
+        .catch(async (err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar eliminar a estos registros. ID del error: ${errID}`);
     });
 });
 /**

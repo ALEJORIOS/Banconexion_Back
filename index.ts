@@ -1,5 +1,5 @@
 import { configDotenv } from "dotenv";
-import express, { Express, Request, Response } from "express";
+import express, { Express, Request, Response, response } from "express";
 import DBConnection from "./db";
 import { Workbook } from "exceljs";
 import cors from "cors"
@@ -89,7 +89,7 @@ app.get("/user", async(req: Request, res: Response) => {
  * @tested true
  */
 app.post("/register", async(req: Request, res: Response) => {
-    await dBConnection.sql`INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.transport}, ${req.body.area}, 0) RETURNING *;`
+    await dBConnection.sql`INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN, GUEST) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}) RETURNING *;`
     .then((response) => {
         res.statusCode = 200;
         res.send(upperize(response[0]))
@@ -127,12 +127,92 @@ app.put("/edit-user", async(req: Request, res: Response) => {
 })
 
 /**
+ * Get the campist of all the area
+ * @param area - string
+ * @returns array of objects
+ * @tested true
+ */
+app.get("/area", async(req: Request, res: Response) => {
+    await dBConnection.sql`SELECT * FROM userview WHERE area = (SELECT name FROM areas WHERE abbr = ${req.query.area as string});`
+    .then((response) => {
+        res.statusCode = 200;
+        res.send(response)
+    })
+    .catch(async(err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar consultar estos registros. ID del error: ${errID}`);
+    })
+})
+
+/**
+ * Get all the relations of a camper
+ * @param document - string
+ * @param type - string
+ * @returns array of objects
+ * @tested true
+ */
+app.get("/relationships", async(req: Request, res: Response) => {
+    await dBConnection.sql`SELECT * FROM userview WHERE (SELECT id FROM persons WHERE (document = ${req.query.document as string} AND document_type= ${req.query.type as string})) = ANY (PARENT_RELATIONSHIP);`
+    .then((response) => {
+        res.statusCode = 200;
+        res.send(response)
+    })
+    .catch(async(err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar consultar estos registros. ID del error: ${errID}`);
+    })
+})
+
+/**
+ * Add children to user
+ * @param children - string[]
+ * @param id - number
+ * @returns array of objects updated
+ * @tested true
+ */
+app.post("/relationships", async(req: Request, res: Response) => {
+    const where: number[] = req.body.children;
+    await dBConnection.sql`UPDATE persons SET parent_relationship = array_append(parent_relationship, ${+req.body.id}) WHERE id IN ${ dBConnection.sql(where) } RETURNING *;`
+    .then((response) => {
+        res.statusCode = 200;
+        res.send(response)
+    })
+    .catch(async(err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar agregar a estos registros. ID del error: ${errID}`);
+    })
+})
+
+/**
+ * Remove children to user
+ * @param children - string[]
+ * @param id - number
+ * @returns array of objects updated
+ * @tested true
+ */
+app.put("/relationships", async(req: Request, res: Response) => {
+    const where: number[] = req.body.children;
+    await dBConnection.sql`UPDATE persons SET parent_relationship = array_remove(parent_relationship, ${+req.body.id}) WHERE id IN ${ dBConnection.sql(where) } RETURNING *;`
+    .then((response) => {
+        res.statusCode = 200;
+        res.send(response)
+    })
+    .catch(async(err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar eliminar a estos registros. ID del error: ${errID}`);
+    })
+})
+
+/**
  * Delete user if he/she hasn't transactions (Is not recommended for use)
  * @param id - number
  * @returns an empty array
  * @tested true
  */
-
 app.delete("/delete-user", async(req: Request, res: Response) => {
     await dBConnection.sql`DELETE FROM persons WHERE ID=${req.query.id as string} AND (SELECT SUM(VALUE) FROM transactions WHERE transactions."userID" = ${req.query.id as string}) IS NULL RETURNING *;`
     .then((response) => {
