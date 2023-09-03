@@ -40,7 +40,7 @@ app.get("/check-maintenance", async (req, res) => {
         .catch(async (err) => {
         const errID = await sendError(err);
         res.statusCode = 409;
-        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
+        res.send(`Ocurrió un error al intentar consultar este Registro. ID del error: ${errID}`);
     });
 });
 /**
@@ -343,7 +343,7 @@ app.put("/edit-transaction", async (req, res) => {
         .catch(async (err) => {
         const errID = await sendError(err);
         res.statusCode = 409;
-        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
+        res.send(`Ocurrió un error al intentar consultar este Registro. ID del error: ${errID}`);
     });
 });
 /**
