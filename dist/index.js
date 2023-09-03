@@ -346,6 +346,18 @@ app.put("/edit-transaction", async (req, res) => {
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
+app.put("/transaction-approval", async (req, res) => {
+    dBConnection.sql `UPDATE transactions SET confirmed = 1 WHERE ID IN ${dBConnection.sql(req.body.ids)} RETURNING *;`
+        .then((response) => {
+        res.statusCode = 200;
+        res.send(response.map(res => upperize(res)));
+    })
+        .catch(async (err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar actualizar estos registros. ID del error: ${errID}`);
+    });
+});
 /**
  * See all failures of the app
  * @param limit - number
