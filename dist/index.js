@@ -74,12 +74,14 @@ app.get("/user", async (req, res) => {
  * @param age - number
  * @param transport - 1 0
  * @param area - string
+ * @param guest - number (person who invited the campist)
+ * @param registered_by - number (id of the gam member who carried out the registry)
  *
  * @returns an array with the new record
  * @tested true
  */
 app.post("/register", async (req, res) => {
-    await dBConnection.sql `INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN, GUEST) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}) RETURNING *;`
+    await dBConnection.sql `INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}, ${req.body.registered_by}, ${req.body.phone}) RETURNING *;`
         .then((response) => {
         res.statusCode = 200;
         res.send(upperize(response[0]));
@@ -99,11 +101,13 @@ app.post("/register", async (req, res) => {
  * @param transport - 1 0
  * @param area - string
  * @param id - number
+ * @param guest - number
+ * @param phone - string
  * @returns an array with the record
  * @tested true
  */
 app.put("/edit-user", async (req, res) => {
-    await dBConnection.sql `UPDATE persons SET NAME=${req.body.name}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area} WHERE ID=${req.query.id} RETURNING *;`
+    await dBConnection.sql `UPDATE persons SET NAME=${req.body.name}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, GUEST=${req.body.guest}, PHONE=${req.body.phone} WHERE ID=${req.query.id} RETURNING *;`
         .then((response) => {
         res.statusCode = 200;
         res.send(upperize(response[0]));
@@ -405,6 +409,91 @@ app.get("/export-transactions", async (req, res) => {
         });
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         res.setHeader("Content-Disposition", "attachment;filename=" + "transacciones.xlsx");
+        workbook.xlsx.write(res);
+    }
+    catch (error) {
+        console.error(error);
+    }
+});
+/**
+ * Auxiliar function for report excel
+ */
+async function getReport() {
+    return await dBConnection.sql `SELECT * FROM userview;`
+        .then((resolve) => {
+        return resolve;
+    });
+}
+/**
+ * Auxiliar function for report excel
+ */
+async function getFees() {
+    return await dBConnection.sql `SELECT * FROM fees`
+        .then((resolve) => {
+        return resolve;
+    });
+}
+/**
+ * Auxiliar function for report excel
+ */
+function getCurrentFee(fees, age, transport) {
+    let value = 0;
+    if (age < 2) {
+        return 0;
+    }
+    else if (age < 5) {
+        value = +fees.filter((fee) => fee.attribute === "TARIFA_NINO")[0].value;
+    }
+    else if (age < 12) {
+        value = +fees.filter((fee) => fee.attribute === "TARIFA_MENOR")[0].value;
+    }
+    else if (age >= 12) {
+        value = +fees.filter((fee) => fee.attribute === "TARIFA_COMPLETA")[0].value;
+    }
+    // Add transport
+    if (transport) {
+        value += +fees.filter((fee) => fee.attribute === "TRANSPORT")[0].value;
+    }
+    return value;
+}
+/**
+ * Export report in excel file
+ * @returns an excel file
+ * @tested true
+ */
+app.get("/export-report", async (req, res) => {
+    const fees = await getFees();
+    try {
+        let workbook = new exceljs_1.Workbook();
+        const sheet = workbook.addWorksheet("resumen");
+        sheet.columns = [
+            { header: "Nombre", key: "name", width: 25 },
+            { header: "Edad", key: "age", width: 10 },
+            { header: "Celular", key: "phone", width: 12 },
+            { header: "Area", key: "area", width: 25 },
+            { header: "Invitado Por", key: "host", width: 10 },
+            { header: "Transporte", key: "transport", width: 25 },
+            { header: "Total Abonado", key: "total", width: 15 },
+            { header: "Total Meta", key: "goal", width: 15 },
+            { header: "Diferencia", key: "difference", width: 15 }
+        ];
+        const OBJECT = await getReport();
+        await OBJECT.map((value, index) => {
+            const goal = getCurrentFee(fees, value.age, value.transport === 1 ? true : false);
+            sheet.addRow({
+                name: value.name,
+                age: value.age,
+                phone: value.phone,
+                area: value.area,
+                host: value.invited,
+                transport: value.transport,
+                total: +value.balance,
+                goal,
+                difference: goal - value.balance
+            });
+        });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment;filename=" + "reporte_general.xlsx");
         workbook.xlsx.write(res);
     }
     catch (error) {
