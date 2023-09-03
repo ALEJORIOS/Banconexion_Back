@@ -374,6 +374,12 @@ app.put("/edit-transaction", async(req: Request, res: Response) => {
     })
 })
 
+/**
+ * Transaction approval by admin 2
+ * @param ids - array of number
+ * @returns array of object who changed
+ * @tested true
+ */
 app.put("/transaction-approval", async(req: Request, res: Response) => {
     dBConnection.sql`UPDATE transactions SET confirmed = 1 WHERE ID IN ${dBConnection.sql(req.body.ids)} RETURNING *;`
     .then((response) => {

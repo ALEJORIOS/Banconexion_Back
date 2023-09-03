@@ -346,6 +346,12 @@ app.put("/edit-transaction", async (req, res) => {
         res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
     });
 });
+/**
+ * Transaction approval by admin 2
+ * @param ids - array of number
+ * @returns array of object who changed
+ * @tested true
+ */
 app.put("/transaction-approval", async (req, res) => {
     dBConnection.sql `UPDATE transactions SET confirmed = 1 WHERE ID IN ${dBConnection.sql(req.body.ids)} RETURNING *;`
         .then((response) => {
