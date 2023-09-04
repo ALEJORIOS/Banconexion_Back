@@ -28,6 +28,12 @@ async function sendError(err) {
     });
 }
 /**
+ * API
+ */
+app.get("/", (req, res) => {
+    res.send("Banconexión API v 1.0.0");
+});
+/**
  * Check if project is in maintenance mode
  * @tested true
  */
@@ -75,6 +81,7 @@ app.get("/user", async (req, res) => {
  * @param transport - 1 0
  * @param area - string
  * @param guest - number (person who invited the campist)
+ * @param phone - number
  * @param registered_by - number (id of the gam member who carried out the registry)
  *
  * @returns an array with the new record
@@ -101,13 +108,12 @@ app.post("/register", async (req, res) => {
  * @param transport - 1 0
  * @param area - string
  * @param id - number
- * @param guest - number
  * @param phone - string
  * @returns an array with the record
  * @tested true
  */
 app.put("/edit-user", async (req, res) => {
-    await dBConnection.sql `UPDATE persons SET NAME=${req.body.name}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, GUEST=${req.body.guest}, PHONE=${req.body.phone} WHERE ID=${req.query.id} RETURNING *;`
+    await dBConnection.sql `UPDATE persons SET NAME=${req.body.name}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone} WHERE ID=${req.query.id} RETURNING *;`
         .then((response) => {
         res.statusCode = 200;
         res.send(upperize(response[0]));
@@ -256,7 +262,7 @@ app.get("/fees", async (req, res) => {
  * @tested true
  */
 app.get("/all-users", async (req, res) => {
-    await dBConnection.sql `SELECT DOCUMENT_TYPE, DOCUMENT, NAME, AREA FROM persons;`
+    await dBConnection.sql `SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, NAME, PHONE, TRANSPORT, AREA, INVITED FROM userview;`
         .then((response) => {
         res.statusCode = 200;
         res.send(response.map(res => upperize(res)));
