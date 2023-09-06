@@ -145,9 +145,11 @@ app.put("/edit-user", async(req: Request, res: Response) => {
  */
 app.get("/area", async(req: Request, res: Response) => {
     await dBConnection.sql`SELECT * FROM userview WHERE area = (SELECT name FROM areas WHERE abbr = ${req.query.area as string});`
-    .then((response) => {
+    .then(async(response) => {
         res.statusCode = 200;
-        res.send(response)
+        const fees = await getFees();
+        response.forEach(user => user.goal = getCurrentFee(fees, user.age, user.transport === 1));
+        res.send(response.map(user => upperize(user)))
     })
     .catch(async(err) => {
         const errID = await sendError(err);
