@@ -321,7 +321,7 @@ app.get("/transactions", async (req, res) => {
  * @tested true
  */
 app.get("/filtered-transactions", async (req, res) => {
-    await dBConnection.sql `SELECT t.id, t.name, t.document_type, t.document, t.value, t.date, t.authorized_by, t.confirmed  FROM transactionsView t LEFT JOIN persons p ON t."userID" = p.id WHERE ("userID" = ${req.query.id} OR ${req.query.id} = ANY (PARENT_RELATIONSHIP));`
+    await dBConnection.sql `SELECT t.donation, t.id, t.name, t.document_type, t.document, t.value, t.date, t.authorized_by, t.confirmed  FROM transactionsView t LEFT JOIN persons p ON t."userID" = p.id WHERE ("userID" = ${req.query.id} OR ${req.query.id} = ANY (PARENT_RELATIONSHIP));`
         .then((response) => {
         res.statusCode = 200;
         res.send(response.map(res => upperize(res)));
