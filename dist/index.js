@@ -132,9 +132,11 @@ app.put("/edit-user", async (req, res) => {
  */
 app.get("/area", async (req, res) => {
     await dBConnection.sql `SELECT * FROM userview WHERE area = (SELECT name FROM areas WHERE abbr = ${req.query.area});`
-        .then((response) => {
+        .then(async (response) => {
         res.statusCode = 200;
-        res.send(response);
+        const fees = await getFees();
+        response.forEach(user => user.goal = getCurrentFee(fees, user.age, user.transport === 1));
+        res.send(response.map(user => upperize(user)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
@@ -321,7 +323,11 @@ app.get("/transactions", async (req, res) => {
  * @tested true
  */
 app.get("/filtered-transactions", async (req, res) => {
+<<<<<<< HEAD
     await dBConnection.sql `SELECT t.donation, t.id, t.name, t.document_type, t.document, t.value, t.date, t.authorized_by, t.confirmed  FROM transactionsView t LEFT JOIN persons p ON t."userID" = p.id WHERE ("userID" = ${req.query.id} OR ${req.query.id} = ANY (PARENT_RELATIONSHIP));`
+=======
+    await dBConnection.sql `SELECT t.ID, t.DONATION, t.NAME, t.VALUE, t.DOCUMENT, t.DOCUMENT_TYPE, t.DATE, t.AUTHORIZED_BY, t.CONFIRMED FROM transactionsView t LEFT JOIN persons p ON t."userID" = p.id WHERE ("userID" = ${req.query.id} OR ${req.query.id} = ANY (PARENT_RELATIONSHIP));`
+>>>>>>> b050ae58dbffb206e182f42f6f113ee1820f0bca
         .then((response) => {
         res.statusCode = 200;
         res.send(response.map(res => upperize(res)));
