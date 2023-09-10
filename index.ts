@@ -71,8 +71,10 @@ app.get("/user", async(req: Request, res: Response) => {
     FROM userview
     WHERE (document = ${document} AND document_type = ${type}) OR
     (SELECT id FROM persons WHERE (document = ${document} AND document_type= ${type})) = ANY (PARENT_RELATIONSHIP);`
-    .then((response) => {
+    .then(async(response) => {
         res.statusCode = 200;
+        const fees = await getFees();
+        response.forEach(user => user.goal = getCurrentFee(fees, user.age, user.transport === 1));
         res.send(response.map(user => upperize(user)))
     })
     .catch(async(err) => {
@@ -251,7 +253,7 @@ app.post("/login", async(req: Request, res: Response) => {
     await dBConnection.sql`SELECT * FROM persons WHERE PASSWORD = ${req.body.password} AND DOCUMENT = ${req.body.document} AND DOCUMENT_TYPE = ${req.body.type};`
     .then((response) => {
         res.statusCode = 200;
-        res.send(upperize(response[0]))
+        res.send(response.map(res => upperize(res)))
     })
     .catch(async(err) => {
         const errID = await sendError(err);
@@ -439,7 +441,7 @@ async function getTransactions(): Promise<any> {
  * @returns an excel file
  * @tested true
  */
-app.get("/export-transactions", async(req: Request, res: Response) => {
+app.post("/export-transactions", async(req: Request, res: Response) => {
     try {
         let workbook = new Workbook();
 
@@ -532,7 +534,7 @@ function getCurrentFee(fees: any, age: number, transport: boolean): number{
  * @returns an excel file
  * @tested true
  */
-app.get("/export-report", async(req: Request, res: Response) => {
+app.post("/export-report", async(req: Request, res: Response) => {
     const fees = await getFees();
     try {
         let workbook = new Workbook();

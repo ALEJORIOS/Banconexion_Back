@@ -61,8 +61,10 @@ app.get("/user", async (req, res) => {
     FROM userview
     WHERE (document = ${document} AND document_type = ${type}) OR
     (SELECT id FROM persons WHERE (document = ${document} AND document_type= ${type})) = ANY (PARENT_RELATIONSHIP);`
-        .then((response) => {
+        .then(async (response) => {
         res.statusCode = 200;
+        const fees = await getFees();
+        response.forEach(user => user.goal = getCurrentFee(fees, user.age, user.transport === 1));
         res.send(response.map(user => upperize(user)));
     })
         .catch(async (err) => {
@@ -233,7 +235,7 @@ app.post("/login", async (req, res) => {
     await dBConnection.sql `SELECT * FROM persons WHERE PASSWORD = ${req.body.password} AND DOCUMENT = ${req.body.document} AND DOCUMENT_TYPE = ${req.body.type};`
         .then((response) => {
         res.statusCode = 200;
-        res.send(upperize(response[0]));
+        res.send(response.map(res => upperize(res)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
@@ -406,7 +408,7 @@ async function getTransactions() {
  * @returns an excel file
  * @tested true
  */
-app.get("/export-transactions", async (req, res) => {
+app.post("/export-transactions", async (req, res) => {
     try {
         let workbook = new exceljs_1.Workbook();
         const sheet = workbook.addWorksheet("transacciones");
@@ -487,7 +489,7 @@ function getCurrentFee(fees, age, transport) {
  * @returns an excel file
  * @tested true
  */
-app.get("/export-report", async (req, res) => {
+app.post("/export-report", async (req, res) => {
     const fees = await getFees();
     try {
         let workbook = new exceljs_1.Workbook();
