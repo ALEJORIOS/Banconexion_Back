@@ -127,7 +127,7 @@ app.post("/register", async(req: Request, res: Response) => {
  * @tested true
  */
 app.put("/edit-user", async(req: Request, res: Response) => {
-    await dBConnection.sql`UPDATE persons SET NAME=${req.body.name}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone} WHERE ID=${req.query.id as string} RETURNING *;`
+    await dBConnection.sql`UPDATE persons SET NAME=${req.body.name}, ADMIN=${req.body.admin}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone} WHERE ID=${req.query.id as string} RETURNING *;`
     .then((response) => {
         res.statusCode = 200;
         res.send(upperize(response[0]))
@@ -252,8 +252,13 @@ app.delete("/delete-user", async(req: Request, res: Response) => {
 app.post("/login", async(req: Request, res: Response) => {
     await dBConnection.sql`SELECT * FROM persons WHERE PASSWORD = ${req.body.password} AND DOCUMENT = ${req.body.document} AND DOCUMENT_TYPE = ${req.body.type};`
     .then((response) => {
-        res.statusCode = 200;
-        res.send(response.map(res => upperize(res)))
+        if(response.length) {
+            res.statusCode = 200;
+            res.send(response.map(res => upperize(res)))
+        }else{
+            res.statusCode = 409;
+            res.send(response.map(res => upperize(res)))
+        }
     })
     .catch(async(err) => {
         const errID = await sendError(err);
@@ -288,7 +293,7 @@ app.get("/fees", async(req: Request, res: Response) => {
  */
 
 app.get("/all-users", async(req: Request, res: Response) => {
-    await dBConnection.sql`SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, NAME, PHONE, TRANSPORT, AREA, INVITED FROM userview;`
+    await dBConnection.sql`SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, NAME, PHONE, TRANSPORT, AREA, ADMIN, INVITED FROM userview;`
     .then((response) => {
         res.statusCode = 200;
         res.send(response.map(res => upperize(res)))
