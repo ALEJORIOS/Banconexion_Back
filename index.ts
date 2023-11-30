@@ -38,7 +38,7 @@ async function sendError(err: string): Promise<number> {
  * API
  */
 app.get("/", (req: Request, res: Response) => {
-    res.send("Banconexión API v 1.0.0")
+    res.send("Banconexión API v 1.1.0")
 })
 
 /**

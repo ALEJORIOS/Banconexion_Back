@@ -31,7 +31,7 @@ async function sendError(err) {
  * API
  */
 app.get("/", (req, res) => {
-    res.send("Banconexión API v 1.0.0");
+    res.send("Banconexión API v 1.1.0");
 });
 /**
  * Check if project is in maintenance mode
