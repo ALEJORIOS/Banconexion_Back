@@ -202,13 +202,35 @@ app.post("/relationships", async(req: Request, res: Response) => {
 })
 
 /**
+ * Update all children to user
+ * @param children - string[]
+ * @param id - number
+ * @returns array of objects updated
+ * @tested false
+ */
+app.put("/relationships", async(req: Request, res: Response) => {
+    const where: number[] = req.body.children;
+    await dBConnection.sql`UPDATE persons SET parent_relationship = array_remove(parent_relationship, ${+req.body.id}) RETURNING *;`
+    await dBConnection.sql`UPDATE persons SET parent_relationship = array_append(parent_relationship, ${+req.body.id}) WHERE id IN ${ dBConnection.sql(where) } RETURNING *;`
+    .then((response) => {
+        res.statusCode = 200;
+        res.send(response)
+    })
+    .catch(async(err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar actualizar a estos registros. ID del error: ${errID}`);
+    })
+})
+
+/**
  * Remove children to user
  * @param children - string[]
  * @param id - number
  * @returns array of objects updated
  * @tested true
  */
-app.put("/relationships", async(req: Request, res: Response) => {
+app.delete("/relationships", async(req: Request, res: Response) => {
     const where: number[] = req.body.children;
     await dBConnection.sql`UPDATE persons SET parent_relationship = array_remove(parent_relationship, ${+req.body.id}) WHERE id IN ${ dBConnection.sql(where) } RETURNING *;`
     .then((response) => {
@@ -251,13 +273,26 @@ app.delete("/delete-user", async(req: Request, res: Response) => {
  */
 app.post("/login", async(req: Request, res: Response) => {
     await dBConnection.sql`SELECT * FROM persons WHERE PASSWORD = ${req.body.password} AND DOCUMENT = ${req.body.document} AND DOCUMENT_TYPE = ${req.body.type};`
-    .then((response) => {
+    .then(async(response) => {
         if(response.length) {
             res.statusCode = 200;
             res.send(response.map(res => upperize(res)))
         }else{
-            res.statusCode = 409;
-            res.send(response.map(res => upperize(res)))
+            await dBConnection.sql`SELECT * FROM persons WHERE PASSWORD IS NULL AND DOCUMENT = ${req.body.document} AND DOCUMENT_TYPE = ${req.body.type};`
+            .then((response2) => {
+                if(response2.length) {
+                    res.statusCode = 200;
+                    res.send(response.map(res => upperize(res)))
+                }else{
+                    res.statusCode = 409;
+                    res.send(response.map(res => upperize(res)))
+                }
+            })
+            .catch(async(err) => {
+                const errID = await sendError(err);
+                res.statusCode = 409;
+                res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
+            })
         }
     })
     .catch(async(err) => {
