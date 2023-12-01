@@ -127,17 +127,42 @@ app.post("/register", async(req: Request, res: Response) => {
  * @tested true
  */
 app.put("/edit-user", async(req: Request, res: Response) => {
+    
     await dBConnection.sql`UPDATE persons SET NAME=${req.body.name}, ADMIN=${req.body.admin}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone} WHERE ID=${req.query.id as string} RETURNING *;`
-    .then((response) => {
-        res.statusCode = 200;
-        res.send(upperize(response[0]))
+    .then(async(response) => {
+        if(req.body.password) {
+            await updatePassword(req.body.password).then((response2: HttpStatus) => {
+                res.statusCode = response2.code;
+                res.send(response2.response);
+            })
+            .catch((error) => {
+                res.statusCode = error.code;
+                res.send(error.response);
+            })
+        }else{
+            res.statusCode = 200;
+            res.send(upperize(response[0]))
+        }
     })
     .catch(async(err) => {
         const errID = await sendError(err);
         res.statusCode = 409;
-        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
+        res.send(`Ocurrió un error al intentar editar este registro. ID del error: ${errID}`);
     })
 })
+
+async function updatePassword(password: string): Promise<HttpStatus> {
+    return new Promise(async(res, rej) => {
+        await dBConnection.sql`UPDATE persons SET PASSWORD=${password} RETURNING *;`
+        .then((response) => {
+            res({code: 200, response: upperize(response[0])})
+        })
+        .catch(async(err) => {
+            const errID = await sendError(err);
+            rej({code: 409, response: upperize(`Ocurrió un error al intentar editar este registro. ID del error: ${errID}`)})
+        })
+    })
+}
 
 /**
  * Get the campist of all the area
@@ -624,3 +649,8 @@ app.post("/export-report", async(req: Request, res: Response) => {
         console.error(error);
     }
 })
+
+interface HttpStatus {
+    code: number,
+    response: string
+}
