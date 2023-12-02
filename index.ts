@@ -643,7 +643,9 @@ app.post("/export-report", async(req: Request, res: Response) => {
             "attachment;filename=" + "reporte_general.xlsx"
         )
 
-        workbook.xlsx.write(res);
+        res.statusCode = 200;
+
+        workbook.xlsx.write(res).then(() => {res.statusCode = 409})
 
     } catch (error) {
         console.error(error);
