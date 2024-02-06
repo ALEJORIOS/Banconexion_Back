@@ -65,6 +65,10 @@ app.get("/user", async (req, res) => {
         res.statusCode = 200;
         const fees = await getFees();
         response.forEach(user => user.goal = getCurrentFee(fees, user.age, user.transport === 1));
+        const headIndex = response.findIndex(user => user.document === document);
+        const familyHead = response[headIndex];
+        response.splice(headIndex, 1);
+        response.splice(0, 0, familyHead);
         res.send(response.map(user => upperize(user)));
     })
         .catch(async (err) => {
