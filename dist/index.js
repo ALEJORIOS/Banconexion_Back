@@ -122,7 +122,7 @@ app.put("/edit-user", async (req, res) => {
     await dBConnection.sql `UPDATE persons SET NAME=${req.body.name}, ADMIN=${req.body.admin}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone} WHERE ID=${req.query.id} RETURNING *;`
         .then(async (response) => {
         if (req.body.password) {
-            await updatePassword(req.body.password).then((response2) => {
+            await updatePassword(req.body.password, req.body.type, req.body.document).then((response2) => {
                 res.statusCode = response2.code;
                 res.send(response2.response);
             })
@@ -142,9 +142,9 @@ app.put("/edit-user", async (req, res) => {
         res.send(`Ocurrió un error al intentar editar este registro. ID del error: ${errID}`);
     });
 });
-async function updatePassword(password) {
+async function updatePassword(password, docType, document) {
     return new Promise(async (res, rej) => {
-        await dBConnection.sql `UPDATE persons SET PASSWORD=${password} RETURNING *;`
+        await dBConnection.sql `UPDATE persons SET PASSWORD=${password} WHERE DOCUMENT_TYPE=${docType} AND DOCUMENT=${document} RETURNING *;`
             .then((response) => {
             res({ code: 200, response: upperize(response[0]) });
         })
