@@ -132,7 +132,7 @@ app.post("/register", async(req: Request, res: Response) => {
  */
 app.put("/edit-user", async(req: Request, res: Response) => {
     
-    await dBConnection.sql`UPDATE persons SET NAME=${req.body.name}, ADMIN=${req.body.admin}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone} WHERE ID=${req.query.id as string} RETURNING *;`
+    await dBConnection.sql`UPDATE persons SET NAME=${req.body.name}, ADMIN=${req.body.admin}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, BIRTH=${req.body.birth}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone} WHERE ID=${req.query.id as string} RETURNING *;`
     .then(async(response) => {
         if(req.body.password) {
             await updatePassword(req.body.password, req.body.type, req.body.document).then((response2: HttpStatus) => {
@@ -357,7 +357,7 @@ app.get("/fees", async(req: Request, res: Response) => {
  */
 
 app.get("/all-users", async(req: Request, res: Response) => {
-    await dBConnection.sql`SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, NAME, PHONE, TRANSPORT, AREA, ADMIN, INVITED FROM userview;`
+    await dBConnection.sql`SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, NAME, PHONE, TRANSPORT, AREA, ADMIN, INVITED FROM userview;`
     .then((response) => {
         res.statusCode = 200;
         res.send(response.map(res => upperize(res)))
