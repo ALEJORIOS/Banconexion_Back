@@ -360,6 +360,12 @@ app.get("/all-users", async(req: Request, res: Response) => {
     await dBConnection.sql`SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, NAME, PHONE, TRANSPORT, AREA, ADMIN, INVITED FROM userview;`
     .then((response) => {
         res.statusCode = 200;
+        response.forEach((user: any) => {
+            if(user.birth) {
+                const birth = new Date(user.birth); 
+                user.birth = `${birth.getFullYear()}-${birth.getMonth()+1}-${birth.getDate()+1}`;
+            }
+        })
         res.send(response.map(res => upperize(res)))
     })
     .catch(async(err) => {
