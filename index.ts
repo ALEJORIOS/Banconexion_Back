@@ -436,7 +436,7 @@ app.get("/all-users", async (req: Request, res: Response) => {
         if (user.birth) {
           const birth = new Date(user.birth);
           user.birth = `${birth.getFullYear()}-${
-            birth.getMonth().toString().padStart(2, "0") + 1
+            (birth.getMonth() + 1).toString().padStart(2, "0")
           }-${birth.getDate().toString().padStart(2, "0")}`;
         }
       });
