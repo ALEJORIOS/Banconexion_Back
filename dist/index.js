@@ -14,7 +14,7 @@ app.use(express_1.default.json());
 app.use((0, cors_1.default)());
 // Start Connection to DB
 app.listen(process.env.PORT, () => {
-    console.log('Listening on port ', process.env.PORT);
+    console.log("Listening on port ", process.env.PORT);
 });
 const dBConnection = new db_1.default("ep-rough-sea-49693752-pooler.us-east-1.postgres.vercel-storage.com", "Banconexion", "default", "1lWYvjDu6hfL");
 const upperize = (obj) => Object.keys(obj).reduce((acc, k) => {
@@ -22,8 +22,7 @@ const upperize = (obj) => Object.keys(obj).reduce((acc, k) => {
     return acc;
 }, {});
 async function sendError(err) {
-    return await dBConnection.sql `INSERT INTO FAILURES(DATE, ERROR) VALUES(NOW(),  ${err.toString()}) RETURNING ID;`
-        .then((response) => {
+    return await dBConnection.sql `INSERT INTO FAILURES(DATE, ERROR) VALUES(NOW(),  ${err.toString()}) RETURNING ID;`.then((response) => {
         return response[0].id;
     });
 }
@@ -50,10 +49,10 @@ app.get("/check-maintenance", async (req, res) => {
     });
 });
 /**
-* Get all data user including their covers
-* @returns and array of objects
-* @tested tested for one person
-*/
+ * Get all data user including their covers
+ * @returns and array of objects
+ * @tested tested for one person
+ */
 app.get("/user", async (req, res) => {
     const document = req.query.document;
     const type = req.query.type;
@@ -64,12 +63,12 @@ app.get("/user", async (req, res) => {
         .then(async (response) => {
         res.statusCode = 200;
         const fees = await getFees();
-        response.forEach(user => user.goal = getCurrentFee(fees, user.age, user.transport === 1));
-        const headIndex = response.findIndex(user => user.document === document);
+        response.forEach((user) => (user.goal = getCurrentFee(fees, user.age, user.transport === 1)));
+        const headIndex = response.findIndex((user) => user.document === document);
         const familyHead = response[headIndex];
         response.splice(headIndex, 1);
         response.splice(0, 0, familyHead);
-        res.send(response.map(user => upperize(user)));
+        res.send(response.map((user) => upperize(user)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
@@ -122,7 +121,8 @@ app.put("/edit-user", async (req, res) => {
     await dBConnection.sql `UPDATE persons SET NAME=${req.body.name}, ADMIN=${req.body.admin}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, BIRTH=${req.body.birth}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone} WHERE ID=${req.query.id} RETURNING *;`
         .then(async (response) => {
         if (req.body.password) {
-            await updatePassword(req.body.password, req.body.type, req.body.document).then((response2) => {
+            await updatePassword(req.body.password, req.body.type, req.body.document)
+                .then((response2) => {
                 res.statusCode = response2.code;
                 res.send(response2.response);
             })
@@ -150,7 +150,10 @@ async function updatePassword(password, docType, document) {
         })
             .catch(async (err) => {
             const errID = await sendError(err);
-            rej({ code: 409, response: upperize(`Ocurrió un error al intentar editar este registro. ID del error: ${errID}`) });
+            rej({
+                code: 409,
+                response: upperize(`Ocurrió un error al intentar editar este registro. ID del error: ${errID}`),
+            });
         });
     });
 }
@@ -165,8 +168,8 @@ app.get("/area", async (req, res) => {
         .then(async (response) => {
         res.statusCode = 200;
         const fees = await getFees();
-        response.forEach(user => user.goal = getCurrentFee(fees, user.age, user.transport === 1));
-        res.send(response.map(user => upperize(user)));
+        response.forEach((user) => (user.goal = getCurrentFee(fees, user.age, user.transport === 1)));
+        res.send(response.map((user) => upperize(user)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
@@ -202,7 +205,8 @@ app.get("/relationships", async (req, res) => {
  */
 app.post("/relationships", async (req, res) => {
     const where = req.body.children;
-    await dBConnection.sql `UPDATE persons SET parent_relationship = array_append(parent_relationship, ${+req.body.id}) WHERE id IN ${dBConnection.sql(where)} RETURNING *;`
+    await dBConnection.sql `UPDATE persons SET parent_relationship = array_append(parent_relationship, ${+req
+        .body.id}) WHERE id IN ${dBConnection.sql(where)} RETURNING *;`
         .then((response) => {
         res.statusCode = 200;
         res.send(response);
@@ -222,8 +226,10 @@ app.post("/relationships", async (req, res) => {
  */
 app.put("/relationships", async (req, res) => {
     const where = req.body.children;
-    await dBConnection.sql `UPDATE persons SET parent_relationship = array_remove(parent_relationship, ${+req.body.id}) RETURNING *;`;
-    await dBConnection.sql `UPDATE persons SET parent_relationship = array_append(parent_relationship, ${+req.body.id}) WHERE id IN ${dBConnection.sql(where)} RETURNING *;`
+    await dBConnection.sql `UPDATE persons SET parent_relationship = array_remove(parent_relationship, ${+req
+        .body.id}) RETURNING *;`;
+    await dBConnection.sql `UPDATE persons SET parent_relationship = array_append(parent_relationship, ${+req
+        .body.id}) WHERE id IN ${dBConnection.sql(where)} RETURNING *;`
         .then((response) => {
         res.statusCode = 200;
         res.send(response);
@@ -243,7 +249,8 @@ app.put("/relationships", async (req, res) => {
  */
 app.delete("/relationships", async (req, res) => {
     const where = req.body.children;
-    await dBConnection.sql `UPDATE persons SET parent_relationship = array_remove(parent_relationship, ${+req.body.id}) WHERE id IN ${dBConnection.sql(where)} RETURNING *;`
+    await dBConnection.sql `UPDATE persons SET parent_relationship = array_remove(parent_relationship, ${+req
+        .body.id}) WHERE id IN ${dBConnection.sql(where)} RETURNING *;`
         .then((response) => {
         res.statusCode = 200;
         res.send(response);
@@ -285,18 +292,18 @@ app.post("/login", async (req, res) => {
         .then(async (response) => {
         if (response.length) {
             res.statusCode = 200;
-            res.send(response.map(res => upperize(res)));
+            res.send(response.map((res) => upperize(res)));
         }
         else {
             await dBConnection.sql `SELECT * FROM persons WHERE PASSWORD IS NULL AND DOCUMENT = ${req.body.document} AND DOCUMENT_TYPE = ${req.body.type};`
                 .then((response2) => {
                 if (response2.length) {
                     res.statusCode = 200;
-                    res.send(response.map(res => upperize(res)));
+                    res.send(response.map((res) => upperize(res)));
                 }
                 else {
                     res.statusCode = 409;
-                    res.send(response.map(res => upperize(res)));
+                    res.send(response.map((res) => upperize(res)));
                 }
             })
                 .catch(async (err) => {
@@ -321,7 +328,7 @@ app.get("/fees", async (req, res) => {
     dBConnection.sql `SELECT * FROM fees`
         .then((response) => {
         res.statusCode = 200;
-        res.send(response.map(res => upperize(res)));
+        res.send(response.map((res) => upperize(res)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
@@ -341,10 +348,10 @@ app.get("/all-users", async (req, res) => {
         response.forEach((user) => {
             if (user.birth) {
                 const birth = new Date(user.birth);
-                user.birth = `${birth.getFullYear()}-${birth.getMonth().toString().padStart(1, "0") + 1}-${birth.getDate().toString().padStart(1, "0")}`;
+                user.birth = `${birth.getFullYear()}-${birth.getMonth().toString().padStart(2, "0") + 1}-${birth.getDate().toString().padStart(2, "0")}`;
             }
         });
-        res.send(response.map(res => upperize(res)));
+        res.send(response.map((res) => upperize(res)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
@@ -385,7 +392,7 @@ app.get("/transactions", async (req, res) => {
     await dBConnection.sql `SELECT * FROM transactionsView`
         .then((response) => {
         res.statusCode = 200;
-        res.send(response.map(res => upperize(res)));
+        res.send(response.map((res) => upperize(res)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
@@ -403,7 +410,7 @@ app.get("/filtered-transactions", async (req, res) => {
     await dBConnection.sql `SELECT t.ID, t.DONATION, t.NAME, t.VALUE, t.DOCUMENT, t.DOCUMENT_TYPE, t.DATE, t.AUTHORIZED_BY, t.CONFIRMED FROM transactionsView t LEFT JOIN persons p ON t."userID" = p.id WHERE ("userID" = ${req.query.id} OR "authorized" = ${req.query.id} OR ${req.query.id} = ANY (PARENT_RELATIONSHIP));`
         .then((response) => {
         res.statusCode = 200;
-        res.send(response.map(res => upperize(res)));
+        res.send(response.map((res) => upperize(res)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
@@ -441,7 +448,7 @@ app.put("/transaction-approval", async (req, res) => {
     dBConnection.sql `UPDATE transactions SET confirmed = 1 WHERE ID IN ${dBConnection.sql(req.body.ids)} RETURNING *;`
         .then((response) => {
         res.statusCode = 200;
-        res.send(response.map(res => upperize(res)));
+        res.send(response.map((res) => upperize(res)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
@@ -461,7 +468,7 @@ app.get("/failures", async (req, res) => {
     LIMIT ${req.query.limit || 20} OFFSET ${req.query.skip || 5};`
         .then((response) => {
         res.statusCode = 200;
-        res.send(response.map(res => upperize(res)));
+        res.send(response.map((res) => upperize(res)));
     })
         .catch(async (err) => {
         const errID = await sendError(err);
@@ -473,8 +480,7 @@ app.get("/failures", async (req, res) => {
  * Auxiliar function for transactions excel
  */
 async function getTransactions() {
-    return await dBConnection.sql `SELECT * FROM transactionsview;`
-        .then((resolve) => {
+    return await dBConnection.sql `SELECT * FROM transactionsview;`.then((resolve) => {
         return resolve;
     });
 }
@@ -495,7 +501,7 @@ app.post("/export-transactions", async (req, res) => {
             { header: "Valor", key: "value", width: 10 },
             { header: "Autoriza", key: "authorized_by", width: 25 },
             { header: "Donacion", key: "donation", width: 5 },
-            { header: "Confirmado", key: "confirmed", width: 5 }
+            { header: "Confirmado", key: "confirmed", width: 5 },
         ];
         const OBJECT = await getTransactions();
         await OBJECT.map((value, index) => {
@@ -507,7 +513,7 @@ app.post("/export-transactions", async (req, res) => {
                 value: value.value,
                 authorized_by: value.authorized_by,
                 donation: value.donation === 1 ? "Sí" : "No",
-                confirmed: value.confirmed === 1 ? "Sí" : "No"
+                confirmed: value.confirmed === 1 ? "Sí" : "No",
             });
         });
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -522,8 +528,7 @@ app.post("/export-transactions", async (req, res) => {
  * Auxiliar function for report excel
  */
 async function getReport() {
-    return await dBConnection.sql `SELECT * FROM userview;`
-        .then((resolve) => {
+    return await dBConnection.sql `SELECT * FROM userview;`.then((resolve) => {
         return resolve;
     });
 }
@@ -531,8 +536,7 @@ async function getReport() {
  * Auxiliar function for report excel
  */
 async function getFees() {
-    return await dBConnection.sql `SELECT * FROM fees`
-        .then((resolve) => {
+    return await dBConnection.sql `SELECT * FROM fees`.then((resolve) => {
         return resolve;
     });
 }
@@ -545,13 +549,16 @@ function getCurrentFee(fees, age, transport) {
         return 0;
     }
     else if (age < 5) {
-        value = +fees.filter((fee) => fee.attribute === "TARIFA_NINO")[0].value;
+        value = +fees.filter((fee) => fee.attribute === "TARIFA_NINO")[0]
+            .value;
     }
     else if (age < 12) {
-        value = +fees.filter((fee) => fee.attribute === "TARIFA_MENOR")[0].value;
+        value = +fees.filter((fee) => fee.attribute === "TARIFA_MENOR")[0]
+            .value;
     }
     else if (age >= 12) {
-        value = +fees.filter((fee) => fee.attribute === "TARIFA_COMPLETA")[0].value;
+        value = +fees.filter((fee) => fee.attribute === "TARIFA_COMPLETA")[0]
+            .value;
     }
     // Add transport
     if (transport) {
@@ -578,7 +585,7 @@ app.post("/export-report", async (req, res) => {
             { header: "Transporte", key: "transport", width: 25 },
             { header: "Total Abonado", key: "total", width: 15 },
             { header: "Total Meta", key: "goal", width: 15 },
-            { header: "Diferencia", key: "difference", width: 15 }
+            { header: "Diferencia", key: "difference", width: 15 },
         ];
         const OBJECT = await getReport();
         await OBJECT.map((value, index) => {
@@ -592,13 +599,15 @@ app.post("/export-report", async (req, res) => {
                 transport: value.transport,
                 total: +value.balance,
                 goal,
-                difference: goal - value.balance
+                difference: goal - value.balance,
             });
         });
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         res.setHeader("Content-Disposition", "attachment;filename=" + "reporte_general.xlsx");
         res.statusCode = 200;
-        workbook.xlsx.write(res).then(() => { res.statusCode = 409; });
+        workbook.xlsx.write(res).then(() => {
+            res.statusCode = 409;
+        });
     }
     catch (error) {
         console.error(error);
