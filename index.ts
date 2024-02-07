@@ -363,7 +363,7 @@ app.get("/all-users", async(req: Request, res: Response) => {
         response.forEach((user: any) => {
             if(user.birth) {
                 const birth = new Date(user.birth); 
-                user.birth = `${birth.getFullYear()}-${birth.getMonth()+1}-${birth.getDate()+1}`;
+                user.birth = `${birth.getFullYear()}-${birth.getMonth().toString().padStart(1,"0")+1}-${birth.getDate().toString().padStart(1,"0")}`;
             }
         })
         res.send(response.map(res => upperize(res)))
