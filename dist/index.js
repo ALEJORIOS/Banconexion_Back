@@ -31,7 +31,7 @@ async function sendError(err) {
  * API
  */
 app.get("/", (req, res) => {
-    res.send("Banconexión API v 1.0.0");
+    res.send("Banconexión API v 1.1.0");
 });
 /**
  * Check if project is in maintenance mode
@@ -65,6 +65,10 @@ app.get("/user", async (req, res) => {
         res.statusCode = 200;
         const fees = await getFees();
         response.forEach(user => user.goal = getCurrentFee(fees, user.age, user.transport === 1));
+        const headIndex = response.findIndex(user => user.document === document);
+        const familyHead = response[headIndex];
+        response.splice(headIndex, 1);
+        response.splice(0, 0, familyHead);
         res.send(response.map(user => upperize(user)));
     })
         .catch(async (err) => {
@@ -115,17 +119,41 @@ app.post("/register", async (req, res) => {
  * @tested true
  */
 app.put("/edit-user", async (req, res) => {
-    await dBConnection.sql `UPDATE persons SET NAME=${req.body.name}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone} WHERE ID=${req.query.id} RETURNING *;`
-        .then((response) => {
-        res.statusCode = 200;
-        res.send(upperize(response[0]));
+    await dBConnection.sql `UPDATE persons SET NAME=${req.body.name}, ADMIN=${req.body.admin}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone} WHERE ID=${req.query.id} RETURNING *;`
+        .then(async (response) => {
+        if (req.body.password) {
+            await updatePassword(req.body.password, req.body.type, req.body.document).then((response2) => {
+                res.statusCode = response2.code;
+                res.send(response2.response);
+            })
+                .catch((error) => {
+                res.statusCode = error.code;
+                res.send(error.response);
+            });
+        }
+        else {
+            res.statusCode = 200;
+            res.send(upperize(response[0]));
+        }
     })
         .catch(async (err) => {
         const errID = await sendError(err);
         res.statusCode = 409;
-        res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
+        res.send(`Ocurrió un error al intentar editar este registro. ID del error: ${errID}`);
     });
 });
+async function updatePassword(password, docType, document) {
+    return new Promise(async (res, rej) => {
+        await dBConnection.sql `UPDATE persons SET PASSWORD=${password} WHERE DOCUMENT_TYPE=${docType} AND DOCUMENT=${document} RETURNING *;`
+            .then((response) => {
+            res({ code: 200, response: upperize(response[0]) });
+        })
+            .catch(async (err) => {
+            const errID = await sendError(err);
+            rej({ code: 409, response: upperize(`Ocurrió un error al intentar editar este registro. ID del error: ${errID}`) });
+        });
+    });
+}
 /**
  * Get the campist of all the area
  * @param area - string
@@ -186,13 +214,34 @@ app.post("/relationships", async (req, res) => {
     });
 });
 /**
+ * Update all children to user
+ * @param children - string[]
+ * @param id - number
+ * @returns array of objects updated
+ * @tested false
+ */
+app.put("/relationships", async (req, res) => {
+    const where = req.body.children;
+    await dBConnection.sql `UPDATE persons SET parent_relationship = array_remove(parent_relationship, ${+req.body.id}) RETURNING *;`;
+    await dBConnection.sql `UPDATE persons SET parent_relationship = array_append(parent_relationship, ${+req.body.id}) WHERE id IN ${dBConnection.sql(where)} RETURNING *;`
+        .then((response) => {
+        res.statusCode = 200;
+        res.send(response);
+    })
+        .catch(async (err) => {
+        const errID = await sendError(err);
+        res.statusCode = 409;
+        res.send(`Ocurrió un error al intentar actualizar a estos registros. ID del error: ${errID}`);
+    });
+});
+/**
  * Remove children to user
  * @param children - string[]
  * @param id - number
  * @returns array of objects updated
  * @tested true
  */
-app.put("/relationships", async (req, res) => {
+app.delete("/relationships", async (req, res) => {
     const where = req.body.children;
     await dBConnection.sql `UPDATE persons SET parent_relationship = array_remove(parent_relationship, ${+req.body.id}) WHERE id IN ${dBConnection.sql(where)} RETURNING *;`
         .then((response) => {
@@ -233,9 +282,29 @@ app.delete("/delete-user", async (req, res) => {
  */
 app.post("/login", async (req, res) => {
     await dBConnection.sql `SELECT * FROM persons WHERE PASSWORD = ${req.body.password} AND DOCUMENT = ${req.body.document} AND DOCUMENT_TYPE = ${req.body.type};`
-        .then((response) => {
-        res.statusCode = 200;
-        res.send(response.map(res => upperize(res)));
+        .then(async (response) => {
+        if (response.length) {
+            res.statusCode = 200;
+            res.send(response.map(res => upperize(res)));
+        }
+        else {
+            await dBConnection.sql `SELECT * FROM persons WHERE PASSWORD IS NULL AND DOCUMENT = ${req.body.document} AND DOCUMENT_TYPE = ${req.body.type};`
+                .then((response2) => {
+                if (response2.length) {
+                    res.statusCode = 200;
+                    res.send(response.map(res => upperize(res)));
+                }
+                else {
+                    res.statusCode = 409;
+                    res.send(response.map(res => upperize(res)));
+                }
+            })
+                .catch(async (err) => {
+                const errID = await sendError(err);
+                res.statusCode = 409;
+                res.send(`Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`);
+            });
+        }
     })
         .catch(async (err) => {
         const errID = await sendError(err);
@@ -266,7 +335,7 @@ app.get("/fees", async (req, res) => {
  * @tested true
  */
 app.get("/all-users", async (req, res) => {
-    await dBConnection.sql `SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, NAME, PHONE, TRANSPORT, AREA, INVITED FROM userview;`
+    await dBConnection.sql `SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, NAME, PHONE, TRANSPORT, AREA, ADMIN, INVITED FROM userview;`
         .then((response) => {
         res.statusCode = 200;
         res.send(response.map(res => upperize(res)));
@@ -325,7 +394,7 @@ app.get("/transactions", async (req, res) => {
  * @tested true
  */
 app.get("/filtered-transactions", async (req, res) => {
-    await dBConnection.sql `SELECT t.ID, t.DONATION, t.NAME, t.VALUE, t.DOCUMENT, t.DOCUMENT_TYPE, t.DATE, t.AUTHORIZED_BY, t.CONFIRMED FROM transactionsView t LEFT JOIN persons p ON t."userID" = p.id WHERE ("userID" = ${req.query.id} OR ${req.query.id} = ANY (PARENT_RELATIONSHIP));`
+    await dBConnection.sql `SELECT t.ID, t.DONATION, t.NAME, t.VALUE, t.DOCUMENT, t.DOCUMENT_TYPE, t.DATE, t.AUTHORIZED_BY, t.CONFIRMED FROM transactionsView t LEFT JOIN persons p ON t."userID" = p.id WHERE ("userID" = ${req.query.id} OR "authorized" = ${req.query.id} OR ${req.query.id} = ANY (PARENT_RELATIONSHIP));`
         .then((response) => {
         res.statusCode = 200;
         res.send(response.map(res => upperize(res)));
@@ -522,7 +591,8 @@ app.post("/export-report", async (req, res) => {
         });
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         res.setHeader("Content-Disposition", "attachment;filename=" + "reporte_general.xlsx");
-        workbook.xlsx.write(res);
+        res.statusCode = 200;
+        workbook.xlsx.write(res).then(() => { res.statusCode = 409; });
     }
     catch (error) {
         console.error(error);
