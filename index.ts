@@ -3,6 +3,7 @@ import express, { Express, Request, Response, response } from "express";
 import DBConnection from "./db";
 import { Workbook } from "exceljs";
 import cors from "cors";
+import * as nodemailer from 'nodemailer';
 
 configDotenv();
 
@@ -43,7 +44,7 @@ async function sendError(err: string): Promise<number> {
  * API
  */
 app.get("/", (req: Request, res: Response) => {
-  res.send("Banconexión API v 1.1.0");
+  res.send("Banconexión API v 1.2.0");
 });
 
 /**
@@ -94,11 +95,9 @@ app.get("/user", async (req: Request, res: Response) => {
       res.send(response.map((user) => upperize(user)));
     })
     .catch(async (err) => {
-      const errID = await sendError(err);
+      // const errID = await sendError(err);
       res.statusCode = 409;
-      res.send(
-        `Ocurrió un error al intentar consultar este registro. ID del error: ${errID}`
-      );
+      res.send(`Este registro no existe`);
     });
 });
 
@@ -119,7 +118,7 @@ app.get("/user", async (req: Request, res: Response) => {
  * @tested true
  */
 app.post("/register", async (req: Request, res: Response) => {
-  await dBConnection.sql`INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.birth}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}, ${req.body.registered_by}, ${req.body.phone}) RETURNING *;`
+  await dBConnection.sql`INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE, SIZE) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.birth}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}, ${req.body.registered_by}, ${req.body.phone}, ${req.body.size}) RETURNING *;`
     .then((response) => {
       res.statusCode = 200;
       res.send(upperize(response[0]));
@@ -153,7 +152,9 @@ app.put("/edit-user", async (req: Request, res: Response) => {
     req.body.age
   }, BIRTH=${req.body.birth}, TRANSPORT=${req.body.transport}, AREA=${
     req.body.area
-  }, PHONE=${req.body.phone} WHERE ID=${req.query.id as string} RETURNING *;`
+  }, PHONE=${req.body.phone}, SIZE=${req.body.size} WHERE ID=${
+    req.query.id as string
+  } RETURNING *;`
     .then(async (response) => {
       if (req.body.password) {
         await updatePassword(
@@ -429,15 +430,15 @@ app.get("/fees", async (req: Request, res: Response) => {
  */
 
 app.get("/all-users", async (req: Request, res: Response) => {
-  await dBConnection.sql`SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, NAME, PHONE, TRANSPORT, AREA, ADMIN, INVITED FROM userview;`
+  await dBConnection.sql`SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, NAME, PHONE, TRANSPORT, AREA, ADMIN, SIZE, INVITED FROM userview ORDER BY "name" asc ;`
     .then((response) => {
       res.statusCode = 200;
       response.forEach((user: any) => {
         if (user.birth) {
           const birth = new Date(user.birth);
-          user.birth = `${birth.getFullYear()}-${
-            (birth.getMonth() + 1).toString().padStart(2, "0")
-          }-${birth.getDate().toString().padStart(2, "0")}`;
+          user.birth = `${birth.getFullYear()}-${(birth.getMonth() + 1)
+            .toString()
+            .padStart(2, "0")}-${birth.getDate().toString().padStart(2, "0")}`;
         }
       });
       res.send(response.map((res) => upperize(res)));
@@ -656,6 +657,40 @@ app.post("/export-transactions", async (req: Request, res: Response) => {
       "attachment;filename=" + "transacciones.xlsx"
     );
 
+    workbook.xlsx.writeBuffer().then((buffer: any) => {
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.hostinger.com',
+        port: 465,
+        secure: true,
+        requireTLS: true,
+        auth: {
+          user: 'admin@hodweb.dev',
+          pass: '1BBC1FFD-c'
+        }
+      });
+  
+      // Create an email message
+      const mailOptions = {
+        from: 'Banconexión <admin@hodweb.dev>',
+        to: ['luisrios.lar@gmail.com', 'luismillan@iccenev.com'],
+        subject: 'Reporte de Transacciones de Conexión Divina',
+        text: 'Aquí el reporte',
+        attachments: [{
+          filename: 'transacciones.xlsx',
+          content: buffer
+        }]
+      };
+  
+      // Send the emailX\
+      transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+          console.error('Error occurred:', error);
+        } else {
+          console.log('Email sent:', info.response);
+        }
+      });
+    })
+
     workbook.xlsx.write(res);
   } catch (error) {
     console.error(error);
@@ -725,6 +760,7 @@ app.post("/export-report", async (req: Request, res: Response) => {
       { header: "Total Abonado", key: "total", width: 15 },
       { header: "Total Meta", key: "goal", width: 15 },
       { header: "Diferencia", key: "difference", width: 15 },
+      { header: "Talla", key: "size", width: 15 },
     ];
 
     const OBJECT = await getReport();
@@ -744,6 +780,7 @@ app.post("/export-report", async (req: Request, res: Response) => {
         total: +value.balance,
         goal,
         difference: goal - value.balance,
+        size: value.size
       });
     });
 
@@ -758,6 +795,40 @@ app.post("/export-report", async (req: Request, res: Response) => {
     );
 
     res.statusCode = 200;
+
+    workbook.xlsx.writeBuffer().then((buffer: any) => {
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.hostinger.com',
+        port: 465,
+        secure: true,
+        requireTLS: true,
+        auth: {
+          user: 'admin@hodweb.dev',
+          pass: '1BBC1FFD-c'
+        }
+      });
+  
+      // Create an email message
+      const mailOptions = {
+        from: 'Banconexión <admin@hodweb.dev>',
+        to: ['luisrios.lar@gmail.com', 'luismillan@iccenev.com'],
+        subject: 'Reporte de Usuarios de Conexión Divina',
+        text: 'Aquí el reporte',
+        attachments: [{
+          filename: 'reporte.xlsx',
+          content: buffer
+        }]
+      };
+  
+      // Send the emailX\
+      transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+          console.error('Error occurred:', error);
+        } else {
+          console.log('Email sent:', info.response);
+        }
+      });
+    })
 
     workbook.xlsx.write(res).then(() => {
       res.statusCode = 409;
