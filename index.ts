@@ -44,7 +44,7 @@ async function sendError(err: string): Promise<number> {
  * API
  */
 app.get("/", (req: Request, res: Response) => {
-  res.send("Banconexión API v 1.2.0");
+  res.send("Banconexión API v 1.2.1");
 });
 
 /**
@@ -487,7 +487,7 @@ app.post("/payment", async (req: Request, res: Response) => {
  */
 
 app.get("/transactions", async (req: Request, res: Response) => {
-  await dBConnection.sql`SELECT * FROM transactionsView`
+  await dBConnection.sql`SELECT * FROM transactionsView ORDER BY date DESC`
     .then((response) => {
       res.statusCode = 200;
       res.send(response.map((res) => upperize(res)));
