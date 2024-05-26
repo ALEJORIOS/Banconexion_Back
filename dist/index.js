@@ -54,7 +54,7 @@ async function sendError(err) {
  * API
  */
 app.get("/", (req, res) => {
-    res.send("Banconexión API v 1.2.0");
+    res.send("Banconexión API v 1.2.1");
 });
 /**
  * Check if project is in maintenance mode
@@ -415,7 +415,7 @@ app.post("/payment", async (req, res) => {
  * @tested true
  */
 app.get("/transactions", async (req, res) => {
-    await dBConnection.sql `SELECT * FROM transactionsView`
+    await dBConnection.sql `SELECT * FROM transactionsView ORDER BY date DESC`
         .then((response) => {
         res.statusCode = 200;
         res.send(response.map((res) => upperize(res)));
