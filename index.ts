@@ -118,7 +118,7 @@ app.get("/user", async (req: Request, res: Response) => {
  * @tested true
  */
 app.post("/register", async (req: Request, res: Response) => {
-  await dBConnection.sql`INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE, SIZE) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.birth}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}, ${req.body.registered_by}, ${req.body.phone}, ${req.body.size}) RETURNING *;`
+  await dBConnection.sql`INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.birth}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}, ${req.body.registered_by}, ${req.body.phone}) RETURNING *;`
     .then((response) => {
       res.statusCode = 200;
       res.send(upperize(response[0]));
@@ -152,7 +152,7 @@ app.put("/edit-user", async (req: Request, res: Response) => {
     req.body.age
   }, BIRTH=${req.body.birth}, TRANSPORT=${req.body.transport}, AREA=${
     req.body.area
-  }, PHONE=${req.body.phone}, SIZE=${req.body.size} WHERE ID=${
+  }, PHONE=${req.body.phone} WHERE ID=${
     req.query.id as string
   } RETURNING *;`
     .then(async (response) => {
@@ -430,7 +430,7 @@ app.get("/fees", async (req: Request, res: Response) => {
  */
 
 app.get("/all-users", async (req: Request, res: Response) => {
-  await dBConnection.sql`SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, NAME, PHONE, TRANSPORT, AREA, ADMIN, SIZE, INVITED FROM userview ORDER BY "name" asc ;`
+  await dBConnection.sql`SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, NAME, PHONE, TRANSPORT, AREA, ADMIN, INVITED FROM userview ORDER BY "name" asc ;`
     .then((response) => {
       res.statusCode = 200;
       response.forEach((user: any) => {
@@ -759,8 +759,7 @@ app.post("/export-report", async (req: Request, res: Response) => {
       { header: "Transporte", key: "transport", width: 25 },
       { header: "Total Abonado", key: "total", width: 15 },
       { header: "Total Meta", key: "goal", width: 15 },
-      { header: "Diferencia", key: "difference", width: 15 },
-      { header: "Talla", key: "size", width: 15 },
+      { header: "Diferencia", key: "difference", width: 15 }
     ];
 
     const OBJECT = await getReport();
@@ -779,8 +778,7 @@ app.post("/export-report", async (req: Request, res: Response) => {
         transport: value.transport,
         total: +value.balance,
         goal,
-        difference: goal - value.balance,
-        size: value.size
+        difference: goal - value.balance
       });
     });
 
