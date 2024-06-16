@@ -117,7 +117,7 @@ app.get("/user", async (req, res) => {
  * @tested true
  */
 app.post("/register", async (req, res) => {
-    await dBConnection.sql `INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE, SIZE) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.birth}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}, ${req.body.registered_by}, ${req.body.phone}, ${req.body.size}) RETURNING *;`
+    await dBConnection.sql `INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.birth}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}, ${req.body.registered_by}, ${req.body.phone}) RETURNING *;`
         .then((response) => {
         res.statusCode = 200;
         res.send(upperize(response[0]));
@@ -142,7 +142,7 @@ app.post("/register", async (req, res) => {
  * @tested true
  */
 app.put("/edit-user", async (req, res) => {
-    await dBConnection.sql `UPDATE persons SET NAME=${req.body.name}, ADMIN=${req.body.admin}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, BIRTH=${req.body.birth}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone}, SIZE=${req.body.size} WHERE ID=${req.query.id} RETURNING *;`
+    await dBConnection.sql `UPDATE persons SET NAME=${req.body.name}, ADMIN=${req.body.admin}, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${req.body.age}, BIRTH=${req.body.birth}, TRANSPORT=${req.body.transport}, AREA=${req.body.area}, PHONE=${req.body.phone} WHERE ID=${req.query.id} RETURNING *;`
         .then(async (response) => {
         if (req.body.password) {
             await updatePassword(req.body.password, req.body.type, req.body.document)
@@ -366,7 +366,7 @@ app.get("/fees", async (req, res) => {
  * @tested true
  */
 app.get("/all-users", async (req, res) => {
-    await dBConnection.sql `SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, NAME, PHONE, TRANSPORT, AREA, ADMIN, SIZE, INVITED FROM userview ORDER BY "name" asc ;`
+    await dBConnection.sql `SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, NAME, PHONE, TRANSPORT, AREA, ADMIN, INVITED FROM userview ORDER BY "name" asc ;`
         .then((response) => {
         res.statusCode = 200;
         response.forEach((user) => {
@@ -643,8 +643,7 @@ app.post("/export-report", async (req, res) => {
             { header: "Transporte", key: "transport", width: 25 },
             { header: "Total Abonado", key: "total", width: 15 },
             { header: "Total Meta", key: "goal", width: 15 },
-            { header: "Diferencia", key: "difference", width: 15 },
-            { header: "Talla", key: "size", width: 15 },
+            { header: "Diferencia", key: "difference", width: 15 }
         ];
         const OBJECT = await getReport();
         await OBJECT.map((value, index) => {
@@ -658,8 +657,7 @@ app.post("/export-report", async (req, res) => {
                 transport: value.transport,
                 total: +value.balance,
                 goal,
-                difference: goal - value.balance,
-                size: value.size
+                difference: goal - value.balance
             });
         });
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
