@@ -3,7 +3,7 @@ import express, { Express, Request, Response, response } from "express";
 import DBConnection from "./db";
 import { Workbook } from "exceljs";
 import cors from "cors";
-import * as nodemailer from 'nodemailer';
+import * as nodemailer from "nodemailer";
 
 configDotenv();
 
@@ -112,13 +112,15 @@ app.get("/user", async (req: Request, res: Response) => {
  * @param area - string
  * @param guest - number (person who invited the campist)
  * @param phone - number
+ * @param email - string
+ * @param sex - 1 2
  * @param registered_by - number (id of the gam member who carried out the registry)
  *
  * @returns an array with the new record
  * @tested true
  */
 app.post("/register", async (req: Request, res: Response) => {
-  await dBConnection.sql`INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.birth}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}, ${req.body.registered_by}, ${req.body.phone}) RETURNING *;`
+  await dBConnection.sql`INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE, EMAIL, SEX) VALUES (${req.body.name}, ${req.body.type}, ${req.body.document}, ${req.body.age}, ${req.body.birth}, ${req.body.transport}, ${req.body.area}, 0, ${req.body.guest}, ${req.body.registered_by}, ${req.body.phone}, ${req.body.email}, ${req.body.sex}) RETURNING *;`
     .then((response) => {
       res.statusCode = 200;
       res.send(upperize(response[0]));
@@ -146,15 +148,19 @@ app.post("/register", async (req: Request, res: Response) => {
  * @tested true
  */
 app.put("/edit-user", async (req: Request, res: Response) => {
-  await dBConnection.sql`UPDATE persons SET NAME=${req.body.name}, ADMIN=${
-    req.body.admin
-  }, DOCUMENT_TYPE=${req.body.type}, DOCUMENT=${req.body.document}, AGE=${
-    req.body.age
-  }, BIRTH=${req.body.birth}, TRANSPORT=${req.body.transport}, AREA=${
-    req.body.area
-  }, PHONE=${req.body.phone} WHERE ID=${
-    req.query.id as string
-  } RETURNING *;`
+  await dBConnection.sql`UPDATE persons 
+  SET NAME=${req.body.name}, 
+  ADMIN=${req.body.admin}, 
+  DOCUMENT_TYPE=${req.body.type}, 
+  DOCUMENT=${req.body.document}, 
+  AGE=${req.body.age}, 
+  BIRTH=${req.body.birth},
+  TRANSPORT=${req.body.transport}, 
+  AREA=${req.body.area},
+  PHONE=${req.body.phone},
+  EMAIL=${req.body.email}, 
+  SEX=${req.body.sex}
+  WHERE ID=${req.query.id as string} RETURNING *;`
     .then(async (response) => {
       if (req.body.password) {
         await updatePassword(
@@ -430,17 +436,9 @@ app.get("/fees", async (req: Request, res: Response) => {
  */
 
 app.get("/all-users", async (req: Request, res: Response) => {
-  await dBConnection.sql`SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, NAME, PHONE, TRANSPORT, AREA, ADMIN, INVITED FROM userview ORDER BY "name" asc ;`
+  await dBConnection.sql`SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, SEX, BIRTH, NAME, PHONE, EMAIL, TRANSPORT, AREA, ADMIN, INVITED FROM userview ORDER BY "name" asc ;`
     .then((response) => {
       res.statusCode = 200;
-      response.forEach((user: any) => {
-        if (user.birth) {
-          const birth = new Date(user.birth);
-          user.birth = `${birth.getFullYear()}-${(birth.getMonth() + 1)
-            .toString()
-            .padStart(2, "0")}-${birth.getDate().toString().padStart(2, "0")}`;
-        }
-      });
       res.send(response.map((res) => upperize(res)));
     })
     .catch(async (err) => {
@@ -659,37 +657,39 @@ app.post("/export-transactions", async (req: Request, res: Response) => {
 
     workbook.xlsx.writeBuffer().then((buffer: any) => {
       const transporter = nodemailer.createTransport({
-        host: 'smtp.hostinger.com',
+        host: "smtp.hostinger.com",
         port: 465,
         secure: true,
         requireTLS: true,
         auth: {
-          user: 'admin@hodweb.dev',
-          pass: '1BBC1FFD-c'
-        }
+          user: "admin@hodweb.dev",
+          pass: "1BBC1FFD-c",
+        },
       });
-  
+
       // Create an email message
       const mailOptions = {
-        from: 'Banconexión <admin@hodweb.dev>',
-        to: ['luisrios.lar@gmail.com', 'luismillan@iccenev.com'],
-        subject: 'Reporte de Transacciones de Conexión Divina',
-        text: 'Aquí el reporte',
-        attachments: [{
-          filename: 'transacciones.xlsx',
-          content: buffer
-        }]
+        from: "Banconexión <admin@hodweb.dev>",
+        to: ["luisrios.lar@gmail.com", "luismillan@iccenev.com"],
+        subject: "Reporte de Transacciones de Conexión Divina",
+        text: "Aquí el reporte",
+        attachments: [
+          {
+            filename: "transacciones.xlsx",
+            content: buffer,
+          },
+        ],
       };
-  
+
       // Send the emailX\
-      transporter.sendMail(mailOptions, function(error, info){
+      transporter.sendMail(mailOptions, function (error, info) {
         if (error) {
-          console.error('Error occurred:', error);
+          console.error("Error occurred:", error);
         } else {
-          console.log('Email sent:', info.response);
+          console.log("Email sent:", info.response);
         }
       });
-    })
+    });
 
     workbook.xlsx.write(res);
   } catch (error) {
@@ -759,7 +759,7 @@ app.post("/export-report", async (req: Request, res: Response) => {
       { header: "Transporte", key: "transport", width: 25 },
       { header: "Total Abonado", key: "total", width: 15 },
       { header: "Total Meta", key: "goal", width: 15 },
-      { header: "Diferencia", key: "difference", width: 15 }
+      { header: "Diferencia", key: "difference", width: 15 },
     ];
 
     const OBJECT = await getReport();
@@ -778,7 +778,7 @@ app.post("/export-report", async (req: Request, res: Response) => {
         transport: value.transport,
         total: +value.balance,
         goal,
-        difference: goal - value.balance
+        difference: goal - value.balance,
       });
     });
 
@@ -796,37 +796,39 @@ app.post("/export-report", async (req: Request, res: Response) => {
 
     workbook.xlsx.writeBuffer().then((buffer: any) => {
       const transporter = nodemailer.createTransport({
-        host: 'smtp.hostinger.com',
+        host: "smtp.hostinger.com",
         port: 465,
         secure: true,
         requireTLS: true,
         auth: {
-          user: 'admin@hodweb.dev',
-          pass: '1BBC1FFD-c'
-        }
+          user: "admin@hodweb.dev",
+          pass: "1BBC1FFD-c",
+        },
       });
-  
+
       // Create an email message
       const mailOptions = {
-        from: 'Banconexión <admin@hodweb.dev>',
-        to: ['luisrios.lar@gmail.com', 'luismillan@iccenev.com'],
-        subject: 'Reporte de Usuarios de Conexión Divina',
-        text: 'Aquí el reporte',
-        attachments: [{
-          filename: 'reporte.xlsx',
-          content: buffer
-        }]
+        from: "Banconexión <admin@hodweb.dev>",
+        to: ["luisrios.lar@gmail.com", "luismillan@iccenev.com"],
+        subject: "Reporte de Usuarios de Conexión Divina",
+        text: "Aquí el reporte",
+        attachments: [
+          {
+            filename: "reporte.xlsx",
+            content: buffer,
+          },
+        ],
       };
-  
+
       // Send the emailX\
-      transporter.sendMail(mailOptions, function(error, info){
+      transporter.sendMail(mailOptions, function (error, info) {
         if (error) {
-          console.error('Error occurred:', error);
+          console.error("Error occurred:", error);
         } else {
-          console.log('Email sent:', info.response);
+          console.log("Email sent:", info.response);
         }
       });
-    })
+    });
 
     workbook.xlsx.write(res).then(() => {
       res.statusCode = 409;
