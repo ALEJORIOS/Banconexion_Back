@@ -838,6 +838,151 @@ app.post("/export-report", async (req: Request, res: Response) => {
   }
 });
 
+app.get("/kpi", async (req: Request, res: Response) => {
+  const fees = await getFees();
+
+  const transactions =
+    await dBConnection.sql`SELECT * FROM transactionsview WHERE confirmed = 1;`;
+  const users = await dBConnection.sql`SELECT * FROM userview;`;
+
+  const threshold = +(req.query.threshold || 0);
+
+  const totalCollection = getTotalCollection(users, fees);
+  const currentCollection = getCurrentCollection(transactions);
+
+  const totalCampist = countCampist(users, fees, threshold);
+  const allMen = countMen(users, fees, threshold);
+  const allWomen = countWomen(users, fees, threshold);
+  const und = totalCampist - allMen - allWomen;
+  const kids = countKids(users, fees, threshold);
+  const youth = countYouth(users, fees, threshold);
+  const adults = countAdults(users, fees, threshold);
+
+  const response = {
+    current: currentCollection,
+    total: totalCollection,
+    count: totalCampist,
+    men: allMen,
+    women: allWomen,
+    kids: kids,
+    youth: youth,
+    adults: adults,
+    und,
+    area: {
+      pro:
+        getCollectionFromArea(transactions, "PRO") /
+        getTotalCollection(users, fees, "PROTEMPLO"),
+      alb:
+        getCollectionFromArea(transactions, "ALB") /
+        getTotalCollection(users, fees, "ALABANZA"),
+      cre:
+        getCollectionFromArea(transactions, "CRE") /
+        getTotalCollection(users, fees, "CRECIMIENTO"),
+      con:
+        getCollectionFromArea(transactions, "CON") /
+        getTotalCollection(users, fees, "CONSOLIDACIÓN"),
+      dia:
+        getCollectionFromArea(transactions, "DIA") /
+        getTotalCollection(users, fees, "DIACONADO"),
+      int:
+        getCollectionFromArea(transactions, "INT") /
+        getTotalCollection(users, fees, "INTERCESIÓN"),
+      mat:
+        getCollectionFromArea(transactions, "MAT") /
+        getTotalCollection(users, fees, "MATRIMONIOS"),
+      jcr:
+        getCollectionFromArea(transactions, "JCR") /
+        getTotalCollection(users, fees, "JÓVENES"),
+      ast:
+        getCollectionFromArea(transactions, "AST") /
+        getTotalCollection(users, fees, "ASISTENTES"),
+      gdp:
+        getCollectionFromArea(transactions, "GDP") /
+        getTotalCollection(users, fees, "GRANJA DE PAPÁ"),
+    },
+  };
+  res.json(response);
+});
+
+function getTotalCollection(users: any[], fees: any, area?: string) {
+  if (area) {
+    return users
+      .filter((user) => user.area === area)
+      .reduce(
+        (acc: number, user: any) =>
+          acc + getCurrentFee(fees, user.age, user.transport === 1),
+        0
+      );
+  } else {
+    return users.reduce(
+      (acc: number, user: any) =>
+        acc + getCurrentFee(fees, user.age, user.transport === 1),
+      0
+    );
+  }
+}
+
+function getCurrentCollection(transactions: any[]) {
+  return transactions.reduce((acc: number, transaction: any) => {
+    return acc + transaction.value;
+  }, 0);
+}
+
+function getCollectionFromArea(transactions: any[], area: string) {
+  return transactions
+    .filter((transaction) => transaction.area === area)
+    .reduce((acc: number, transaction: any) => {
+      return acc + transaction.value;
+    }, 0);
+}
+
+function countCampist(users: any[], fees: any, threshold: number) {
+  const response = users;
+  return getThresholdCount(response, fees, threshold);
+}
+
+function countMen(users: any[], fees: any, threshold: number) {
+  const response = users.filter((user) => user.sex === 1);
+  return getThresholdCount(response, fees, threshold);
+}
+
+function countWomen(users: any[], fees: any, threshold: number) {
+  const response = users.filter((user) => user.sex === 2);
+  return getThresholdCount(response, fees, threshold);
+}
+
+function countKids(users: any[], fees: any, threshold: number) {
+  const response = users.filter((user) => user.age < 12);
+  return getThresholdCount(response, fees, threshold);
+}
+
+function countYouth(users: any[], fees: any, threshold: number) {
+  const response = users.filter((user) => user.age >= 12 && user.age < 24);
+  return getThresholdCount(response, fees, threshold);
+}
+
+function countAdults(users: any[], fees: any, threshold: number) {
+  const response = users.filter((user) => user.age > 24);
+  return getThresholdCount(response, fees, threshold);
+}
+
+function getThresholdCount(
+  response: any[],
+  fees: any,
+  threshold: number
+): number {
+  let count: number = 0;
+  response.forEach((user: any) => {
+    if (
+      user.confirmed / getCurrentFee(fees, user.age, user.transport === 1) >=
+      threshold
+    ) {
+      count++;
+    }
+  });
+  return count;
+}
+
 interface HttpStatus {
   code: number;
   response: string;
