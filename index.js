@@ -77,7 +77,7 @@ function sendError(err) {
  * API
  */
 app.get("/", function (req, res) {
-    res.send("Banconexión API v 1.2.1");
+    res.send("Banconexión API v 1.2.2");
 });
 /**
  * Check if project is in maintenance mode
@@ -1032,7 +1032,7 @@ app.post("/export-report", function (req, res) { return __awaiter(void 0, void 0
                         sheet_2.addRow({
                             name: value.name,
                             age: value.age,
-                            sex: value.sex,
+                            sex: value.sex === 1 ? "M" : "F",
                             phone: value.phone,
                             email: value.email,
                             area: value.area,

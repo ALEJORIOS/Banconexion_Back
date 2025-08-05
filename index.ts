@@ -44,7 +44,7 @@ async function sendError(err: string): Promise<number> {
  * API
  */
 app.get("/", (req: Request, res: Response) => {
-  res.send("Banconexión API v 1.2.1");
+  res.send("Banconexión API v 1.2.2");
 });
 
 /**
@@ -774,7 +774,7 @@ app.post("/export-report", async (req: Request, res: Response) => {
       sheet.addRow({
         name: value.name,
         age: value.age,
-        sex: value.sex,
+        sex: value.sex === 1 ? "M" : "F",
         phone: value.phone,
         email: value.email,
         area: value.area,
