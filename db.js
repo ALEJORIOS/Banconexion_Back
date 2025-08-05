@@ -9,8 +9,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
@@ -36,7 +36,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// import mysql, { Connection, FieldInfo, MysqlError } from "mysql"
 var postgres_1 = require("postgres");
 var DBConnection = /** @class */ (function () {
     function DBConnection(host, database, username, password) {
@@ -53,34 +52,11 @@ var DBConnection = /** @class */ (function () {
     DBConnection.prototype.execQuery = function (query) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                // return await this.connection`${query}`
-                // return new Promise<any>((res, rej) => {
-                //     this.connection.query(query, async(error: MysqlError | null, results?: any, fields?: FieldInfo[]) => {
-                //         if(error) {
-                //             await this.reportFailure(JSON.stringify(error)).then((resolve) => {
-                //                 rej(resolve)
-                //             })
-                //             .catch((reject) => {
-                //                 rej(reject)
-                //             })
-                //         }
-                //         res(JSON.parse(JSON.stringify(results) || "{}"));
-                //     });
-                // })
                 return [2 /*return*/, new Promise(function (req, res) { })];
             });
         });
     };
     DBConnection.prototype.reportFailure = function (error) {
-        // return new Promise((resolve, reject) => {
-        // const ErrorJson: any = JSON.parse(error);
-        // this.connection.query(`INSERT INTO failures(DATE, CODE, ERRNO, ERROR) VALUES(NOW(), '${ErrorJson.code}', '${ErrorJson.errno}','${ErrorJson.sql}')`, (error: MysqlError | null, results?: any) => {
-        //     if(error) {
-        //         reject(0);
-        //     }
-        //         resolve(results.insertId)
-        //     })
-        // })
         return new Promise(function (req, res) { });
     };
     return DBConnection;

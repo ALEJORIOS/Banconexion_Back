@@ -13,8 +13,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
@@ -45,13 +45,14 @@ var express_1 = require("express");
 var db_1 = require("./db");
 var exceljs_1 = require("exceljs");
 var cors_1 = require("cors");
+var nodemailer = require("nodemailer");
 (0, dotenv_1.configDotenv)();
 var app = (0, express_1.default)();
 app.use(express_1.default.json());
 app.use((0, cors_1.default)());
 // Start Connection to DB
 app.listen(process.env.PORT, function () {
-    console.log('Listening on port ', process.env.PORT);
+    console.log("Listening on port ", process.env.PORT);
 });
 var dBConnection = new db_1.default("ep-rough-sea-49693752-pooler.us-east-1.postgres.vercel-storage.com", "Banconexion", "default", "1lWYvjDu6hfL");
 var upperize = function (obj) {
@@ -72,6 +73,12 @@ function sendError(err) {
         });
     });
 }
+/**
+ * API
+ */
+app.get("/", function (req, res) {
+    res.send("Banconexión API v 1.2.1");
+});
 /**
  * Check if project is in maintenance mode
  * @tested true
@@ -103,10 +110,10 @@ app.get("/check-maintenance", function (req, res) { return __awaiter(void 0, voi
     });
 }); });
 /**
-* Get all data user including their covers
-* @returns and array of objects
-* @tested tested for one person
-*/
+ * Get all data user including their covers
+ * @returns and array of objects
+ * @tested tested for one person
+ */
 app.get("/user", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var document, type;
     return __generator(this, function (_a) {
@@ -114,21 +121,33 @@ app.get("/user", function (req, res) { return __awaiter(void 0, void 0, void 0, 
             case 0:
                 document = req.query.document;
                 type = req.query.type;
-                return [4 /*yield*/, dBConnection.sql(templateObject_3 || (templateObject_3 = __makeTemplateObject(["SELECT * \n    FROM userview\n    WHERE (document = ", " AND document_type = ", ") OR\n    (SELECT id FROM persons WHERE (document = ", " AND document_type= ", ")) = ANY (PARENT_RELATIONSHIP);"], ["SELECT * \n    FROM userview\n    WHERE (document = ", " AND document_type = ", ") OR\n    (SELECT id FROM persons WHERE (document = ", " AND document_type= ", ")) = ANY (PARENT_RELATIONSHIP);"])), document, type, document, type).then(function (response) {
-                        res.statusCode = 200;
-                        res.send(response.map(function (user) { return upperize(user); }));
-                    })
-                        .catch(function (err) { return __awaiter(void 0, void 0, void 0, function () {
-                        var errID;
+                return [4 /*yield*/, dBConnection.sql(templateObject_3 || (templateObject_3 = __makeTemplateObject(["SELECT * \n    FROM userview\n    WHERE (document = ", " AND document_type = ", ") OR\n    (SELECT id FROM persons WHERE (document = ", " AND document_type= ", ")) = ANY (PARENT_RELATIONSHIP);"], ["SELECT * \n    FROM userview\n    WHERE (document = ", " AND document_type = ", ") OR\n    (SELECT id FROM persons WHERE (document = ", " AND document_type= ", ")) = ANY (PARENT_RELATIONSHIP);"])), document, type, document, type).then(function (response) { return __awaiter(void 0, void 0, void 0, function () {
+                        var fees, headIndex, familyHead;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
-                                case 0: return [4 /*yield*/, sendError(err)];
+                                case 0:
+                                    res.statusCode = 200;
+                                    return [4 /*yield*/, getFees()];
                                 case 1:
-                                    errID = _a.sent();
-                                    res.statusCode = 409;
-                                    res.send("Ocurri\u00F3 un error al intentar consultar este registro. ID del error: ".concat(errID));
+                                    fees = _a.sent();
+                                    response.forEach(function (user) {
+                                        return (user.goal = getCurrentFee(fees, user.age, user.transport === 1));
+                                    });
+                                    headIndex = response.findIndex(function (user) { return user.document === document; });
+                                    familyHead = response[headIndex];
+                                    response.splice(headIndex, 1);
+                                    response.splice(0, 0, familyHead);
+                                    res.send(response.map(function (user) { return upperize(user); }));
                                     return [2 /*return*/];
                             }
+                        });
+                    }); })
+                        .catch(function (err) { return __awaiter(void 0, void 0, void 0, function () {
+                        return __generator(this, function (_a) {
+                            // const errID = await sendError(err);
+                            res.statusCode = 409;
+                            res.send("Este registro no existe");
+                            return [2 /*return*/];
                         });
                     }); })];
             case 1:
@@ -147,6 +166,9 @@ app.get("/user", function (req, res) { return __awaiter(void 0, void 0, void 0, 
  * @param transport - 1 0
  * @param area - string
  * @param guest - number (person who invited the campist)
+ * @param phone - number
+ * @param email - string
+ * @param sex - 1 2
  * @param registered_by - number (id of the gam member who carried out the registry)
  *
  * @returns an array with the new record
@@ -155,7 +177,7 @@ app.get("/user", function (req, res) { return __awaiter(void 0, void 0, void 0, 
 app.post("/register", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE) VALUES (", ", ", ", ", ", ", ", ", ", ", ", 0, ", ", ", ", ", ") RETURNING *;"], ["INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE) VALUES (", ", ", ", ", ", ", ", ", ", ", ", 0, ", ", ", ", ", ") RETURNING *;"])), req.body.name, req.body.type, req.body.document, req.body.age, req.body.transport, req.body.area, req.body.guest, req.body.registered_by, req.body.phone).then(function (response) {
+            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE, EMAIL, SEX) VALUES (", ", ", ", ", ", ", ", ", ", ", ", ", ", 0, ", ", ", ", ", ", ", ", ", ") RETURNING *;"], ["INSERT INTO persons(NAME, DOCUMENT_TYPE, DOCUMENT, AGE, BIRTH, TRANSPORT, AREA, ADMIN, GUEST, REGISTERED_BY, PHONE, EMAIL, SEX) VALUES (", ", ", ", ", ", ", ", ", ", ", ", ", ", 0, ", ", ", ", ", ", ", ", ", ") RETURNING *;"])), req.body.name, req.body.type, req.body.document, req.body.age, req.body.birth, req.body.transport, req.body.area, req.body.guest, req.body.registered_by, req.body.phone, req.body.email, req.body.sex).then(function (response) {
                     res.statusCode = 200;
                     res.send(upperize(response[0]));
                 })
@@ -187,7 +209,6 @@ app.post("/register", function (req, res) { return __awaiter(void 0, void 0, voi
  * @param transport - 1 0
  * @param area - string
  * @param id - number
- * @param guest - number
  * @param phone - string
  * @returns an array with the record
  * @tested true
@@ -195,10 +216,31 @@ app.post("/register", function (req, res) { return __awaiter(void 0, void 0, voi
 app.put("/edit-user", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_5 || (templateObject_5 = __makeTemplateObject(["UPDATE persons SET NAME=", ", DOCUMENT_TYPE=", ", DOCUMENT=", ", AGE=", ", TRANSPORT=", ", AREA=", ", GUEST=", ", PHONE=", " WHERE ID=", " RETURNING *;"], ["UPDATE persons SET NAME=", ", DOCUMENT_TYPE=", ", DOCUMENT=", ", AGE=", ", TRANSPORT=", ", AREA=", ", GUEST=", ", PHONE=", " WHERE ID=", " RETURNING *;"])), req.body.name, req.body.type, req.body.document, req.body.age, req.body.transport, req.body.area, req.body.guest, req.body.phone, req.query.id).then(function (response) {
-                    res.statusCode = 200;
-                    res.send(upperize(response[0]));
-                })
+            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_5 || (templateObject_5 = __makeTemplateObject(["UPDATE persons \n  SET NAME=", ", \n  ADMIN=", ", \n  DOCUMENT_TYPE=", ", \n  DOCUMENT=", ", \n  AGE=", ", \n  BIRTH=", ",\n  TRANSPORT=", ", \n  AREA=", ",\n  PHONE=", ",\n  EMAIL=", ", \n  SEX=", "\n  WHERE ID=", " RETURNING *;"], ["UPDATE persons \n  SET NAME=", ", \n  ADMIN=", ", \n  DOCUMENT_TYPE=", ", \n  DOCUMENT=", ", \n  AGE=", ", \n  BIRTH=", ",\n  TRANSPORT=", ", \n  AREA=", ",\n  PHONE=", ",\n  EMAIL=", ", \n  SEX=", "\n  WHERE ID=", " RETURNING *;"])), req.body.name, req.body.admin, req.body.type, req.body.document, req.body.age, req.body.birth, req.body.transport, req.body.area, req.body.phone, req.body.email, req.body.sex, req.query.id).then(function (response) { return __awaiter(void 0, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                if (!req.body.password) return [3 /*break*/, 2];
+                                return [4 /*yield*/, updatePassword(req.body.password, req.body.type, req.body.document)
+                                        .then(function (response2) {
+                                        res.statusCode = response2.code;
+                                        res.send(response2.response);
+                                    })
+                                        .catch(function (error) {
+                                        res.statusCode = error.code;
+                                        res.send(error.response);
+                                    })];
+                            case 1:
+                                _a.sent();
+                                return [3 /*break*/, 3];
+                            case 2:
+                                res.statusCode = 200;
+                                res.send(upperize(response[0]));
+                                _a.label = 3;
+                            case 3: return [2 /*return*/];
+                        }
+                    });
+                }); })
                     .catch(function (err) { return __awaiter(void 0, void 0, void 0, function () {
                     var errID;
                     return __generator(this, function (_a) {
@@ -207,7 +249,7 @@ app.put("/edit-user", function (req, res) { return __awaiter(void 0, void 0, voi
                             case 1:
                                 errID = _a.sent();
                                 res.statusCode = 409;
-                                res.send("Ocurri\u00F3 un error al intentar consultar este registro. ID del error: ".concat(errID));
+                                res.send("Ocurri\u00F3 un error al intentar editar este registro. ID del error: ".concat(errID));
                                 return [2 /*return*/];
                         }
                     });
@@ -218,6 +260,41 @@ app.put("/edit-user", function (req, res) { return __awaiter(void 0, void 0, voi
         }
     });
 }); });
+function updatePassword(password, docType, document) {
+    return __awaiter(this, void 0, void 0, function () {
+        var _this = this;
+        return __generator(this, function (_a) {
+            return [2 /*return*/, new Promise(function (res, rej) { return __awaiter(_this, void 0, void 0, function () {
+                    var _this = this;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_6 || (templateObject_6 = __makeTemplateObject(["UPDATE persons SET PASSWORD=", " WHERE DOCUMENT_TYPE=", " AND DOCUMENT=", " RETURNING *;"], ["UPDATE persons SET PASSWORD=", " WHERE DOCUMENT_TYPE=", " AND DOCUMENT=", " RETURNING *;"])), password, docType, document).then(function (response) {
+                                    res({ code: 200, response: upperize(response[0]) });
+                                })
+                                    .catch(function (err) { return __awaiter(_this, void 0, void 0, function () {
+                                    var errID;
+                                    return __generator(this, function (_a) {
+                                        switch (_a.label) {
+                                            case 0: return [4 /*yield*/, sendError(err)];
+                                            case 1:
+                                                errID = _a.sent();
+                                                rej({
+                                                    code: 409,
+                                                    response: upperize("Ocurri\u00F3 un error al intentar editar este registro. ID del error: ".concat(errID)),
+                                                });
+                                                return [2 /*return*/];
+                                        }
+                                    });
+                                }); })];
+                            case 1:
+                                _a.sent();
+                                return [2 /*return*/];
+                        }
+                    });
+                }); })];
+        });
+    });
+}
 /**
  * Get the campist of all the area
  * @param area - string
@@ -227,10 +304,23 @@ app.put("/edit-user", function (req, res) { return __awaiter(void 0, void 0, voi
 app.get("/area", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_6 || (templateObject_6 = __makeTemplateObject(["SELECT * FROM userview WHERE area = (SELECT name FROM areas WHERE abbr = ", ");"], ["SELECT * FROM userview WHERE area = (SELECT name FROM areas WHERE abbr = ", ");"])), req.query.area).then(function (response) {
-                    res.statusCode = 200;
-                    res.send(response);
-                })
+            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_7 || (templateObject_7 = __makeTemplateObject(["SELECT * FROM userview WHERE area = (SELECT name FROM areas WHERE abbr = ", ");"], ["SELECT * FROM userview WHERE area = (SELECT name FROM areas WHERE abbr = ", ");"])), req.query.area).then(function (response) { return __awaiter(void 0, void 0, void 0, function () {
+                    var fees;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                res.statusCode = 200;
+                                return [4 /*yield*/, getFees()];
+                            case 1:
+                                fees = _a.sent();
+                                response.forEach(function (user) {
+                                    return (user.goal = getCurrentFee(fees, user.age, user.transport === 1));
+                                });
+                                res.send(response.map(function (user) { return upperize(user); }));
+                                return [2 /*return*/];
+                        }
+                    });
+                }); })
                     .catch(function (err) { return __awaiter(void 0, void 0, void 0, function () {
                     var errID;
                     return __generator(this, function (_a) {
@@ -260,7 +350,7 @@ app.get("/area", function (req, res) { return __awaiter(void 0, void 0, void 0, 
 app.get("/relationships", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_7 || (templateObject_7 = __makeTemplateObject(["SELECT * FROM userview WHERE (SELECT id FROM persons WHERE (document = ", " AND document_type= ", ")) = ANY (PARENT_RELATIONSHIP);"], ["SELECT * FROM userview WHERE (SELECT id FROM persons WHERE (document = ", " AND document_type= ", ")) = ANY (PARENT_RELATIONSHIP);"])), req.query.document, req.query.type).then(function (response) {
+            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["SELECT * FROM userview WHERE (SELECT id FROM persons WHERE (document = ", " AND document_type= ", ")) = ANY (PARENT_RELATIONSHIP);"], ["SELECT * FROM userview WHERE (SELECT id FROM persons WHERE (document = ", " AND document_type= ", ")) = ANY (PARENT_RELATIONSHIP);"])), req.query.document, req.query.type).then(function (response) {
                     res.statusCode = 200;
                     res.send(response);
                 })
@@ -296,7 +386,8 @@ app.post("/relationships", function (req, res) { return __awaiter(void 0, void 0
         switch (_a.label) {
             case 0:
                 where = req.body.children;
-                return [4 /*yield*/, dBConnection.sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["UPDATE persons SET parent_relationship = array_append(parent_relationship, ", ") WHERE id IN ", " RETURNING *;"], ["UPDATE persons SET parent_relationship = array_append(parent_relationship, ", ") WHERE id IN ", " RETURNING *;"])), +req.body.id, dBConnection.sql(where)).then(function (response) {
+                return [4 /*yield*/, dBConnection.sql(templateObject_9 || (templateObject_9 = __makeTemplateObject(["UPDATE persons SET parent_relationship = array_append(parent_relationship, ", ") WHERE id IN ", " RETURNING *;"], ["UPDATE persons SET parent_relationship = array_append(parent_relationship, ", ") WHERE id IN ", " RETURNING *;"])), +req
+                        .body.id, dBConnection.sql(where)).then(function (response) {
                         res.statusCode = 200;
                         res.send(response);
                     })
@@ -320,11 +411,11 @@ app.post("/relationships", function (req, res) { return __awaiter(void 0, void 0
     });
 }); });
 /**
- * Remove children to user
+ * Update all children to user
  * @param children - string[]
  * @param id - number
  * @returns array of objects updated
- * @tested true
+ * @tested false
  */
 app.put("/relationships", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var where;
@@ -332,7 +423,49 @@ app.put("/relationships", function (req, res) { return __awaiter(void 0, void 0,
         switch (_a.label) {
             case 0:
                 where = req.body.children;
-                return [4 /*yield*/, dBConnection.sql(templateObject_9 || (templateObject_9 = __makeTemplateObject(["UPDATE persons SET parent_relationship = array_remove(parent_relationship, ", ") WHERE id IN ", " RETURNING *;"], ["UPDATE persons SET parent_relationship = array_remove(parent_relationship, ", ") WHERE id IN ", " RETURNING *;"])), +req.body.id, dBConnection.sql(where)).then(function (response) {
+                return [4 /*yield*/, dBConnection.sql(templateObject_10 || (templateObject_10 = __makeTemplateObject(["UPDATE persons SET parent_relationship = array_remove(parent_relationship, ", ") RETURNING *;"], ["UPDATE persons SET parent_relationship = array_remove(parent_relationship, ", ") RETURNING *;"])), +req
+                        .body.id)];
+            case 1:
+                _a.sent();
+                return [4 /*yield*/, dBConnection.sql(templateObject_11 || (templateObject_11 = __makeTemplateObject(["UPDATE persons SET parent_relationship = array_append(parent_relationship, ", ") WHERE id IN ", " RETURNING *;"], ["UPDATE persons SET parent_relationship = array_append(parent_relationship, ", ") WHERE id IN ", " RETURNING *;"])), +req
+                        .body.id, dBConnection.sql(where)).then(function (response) {
+                        res.statusCode = 200;
+                        res.send(response);
+                    })
+                        .catch(function (err) { return __awaiter(void 0, void 0, void 0, function () {
+                        var errID;
+                        return __generator(this, function (_a) {
+                            switch (_a.label) {
+                                case 0: return [4 /*yield*/, sendError(err)];
+                                case 1:
+                                    errID = _a.sent();
+                                    res.statusCode = 409;
+                                    res.send("Ocurri\u00F3 un error al intentar actualizar a estos registros. ID del error: ".concat(errID));
+                                    return [2 /*return*/];
+                            }
+                        });
+                    }); })];
+            case 2:
+                _a.sent();
+                return [2 /*return*/];
+        }
+    });
+}); });
+/**
+ * Remove children to user
+ * @param children - string[]
+ * @param id - number
+ * @returns array of objects updated
+ * @tested true
+ */
+app.delete("/relationships", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var where;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                where = req.body.children;
+                return [4 /*yield*/, dBConnection.sql(templateObject_12 || (templateObject_12 = __makeTemplateObject(["UPDATE persons SET parent_relationship = array_remove(parent_relationship, ", ") WHERE id IN ", " RETURNING *;"], ["UPDATE persons SET parent_relationship = array_remove(parent_relationship, ", ") WHERE id IN ", " RETURNING *;"])), +req
+                        .body.id, dBConnection.sql(where)).then(function (response) {
                         res.statusCode = 200;
                         res.send(response);
                     })
@@ -364,7 +497,7 @@ app.put("/relationships", function (req, res) { return __awaiter(void 0, void 0,
 app.delete("/delete-user", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_10 || (templateObject_10 = __makeTemplateObject(["DELETE FROM persons WHERE ID=", " AND (SELECT SUM(VALUE) FROM transactions WHERE transactions.\"userID\" = ", ") IS NULL RETURNING *;"], ["DELETE FROM persons WHERE ID=", " AND (SELECT SUM(VALUE) FROM transactions WHERE transactions.\"userID\" = ", ") IS NULL RETURNING *;"])), req.query.id, req.query.id).then(function (response) {
+            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_13 || (templateObject_13 = __makeTemplateObject(["DELETE FROM persons WHERE ID=", " AND (SELECT SUM(VALUE) FROM transactions WHERE transactions.\"userID\" = ", ") IS NULL RETURNING *;"], ["DELETE FROM persons WHERE ID=", " AND (SELECT SUM(VALUE) FROM transactions WHERE transactions.\"userID\" = ", ") IS NULL RETURNING *;"])), req.query.id, req.query.id).then(function (response) {
                     res.statusCode = 200;
                     res.send(response);
                 })
@@ -398,10 +531,44 @@ app.delete("/delete-user", function (req, res) { return __awaiter(void 0, void 0
 app.post("/login", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_11 || (templateObject_11 = __makeTemplateObject(["SELECT * FROM persons WHERE PASSWORD = ", " AND DOCUMENT = ", " AND DOCUMENT_TYPE = ", ";"], ["SELECT * FROM persons WHERE PASSWORD = ", " AND DOCUMENT = ", " AND DOCUMENT_TYPE = ", ";"])), req.body.password, req.body.document, req.body.type).then(function (response) {
-                    res.statusCode = 200;
-                    res.send(upperize(response[0]));
-                })
+            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_14 || (templateObject_14 = __makeTemplateObject(["SELECT * FROM persons WHERE PASSWORD = ", " AND DOCUMENT = ", " AND DOCUMENT_TYPE = ", ";"], ["SELECT * FROM persons WHERE PASSWORD = ", " AND DOCUMENT = ", " AND DOCUMENT_TYPE = ", ";"])), req.body.password, req.body.document, req.body.type).then(function (response) { return __awaiter(void 0, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                if (!response.length) return [3 /*break*/, 1];
+                                res.statusCode = 200;
+                                res.send(response.map(function (res) { return upperize(res); }));
+                                return [3 /*break*/, 3];
+                            case 1: return [4 /*yield*/, dBConnection.sql(templateObject_15 || (templateObject_15 = __makeTemplateObject(["SELECT * FROM persons WHERE PASSWORD IS NULL AND DOCUMENT = ", " AND DOCUMENT_TYPE = ", ";"], ["SELECT * FROM persons WHERE PASSWORD IS NULL AND DOCUMENT = ", " AND DOCUMENT_TYPE = ", ";"])), req.body.document, req.body.type).then(function (response2) {
+                                    if (response2.length) {
+                                        res.statusCode = 200;
+                                        res.send(response.map(function (res) { return upperize(res); }));
+                                    }
+                                    else {
+                                        res.statusCode = 409;
+                                        res.send(response.map(function (res) { return upperize(res); }));
+                                    }
+                                })
+                                    .catch(function (err) { return __awaiter(void 0, void 0, void 0, function () {
+                                    var errID;
+                                    return __generator(this, function (_a) {
+                                        switch (_a.label) {
+                                            case 0: return [4 /*yield*/, sendError(err)];
+                                            case 1:
+                                                errID = _a.sent();
+                                                res.statusCode = 409;
+                                                res.send("Ocurri\u00F3 un error al intentar consultar este registro. ID del error: ".concat(errID));
+                                                return [2 /*return*/];
+                                        }
+                                    });
+                                }); })];
+                            case 2:
+                                _a.sent();
+                                _a.label = 3;
+                            case 3: return [2 /*return*/];
+                        }
+                    });
+                }); })
                     .catch(function (err) { return __awaiter(void 0, void 0, void 0, function () {
                     var errID;
                     return __generator(this, function (_a) {
@@ -428,7 +595,7 @@ app.post("/login", function (req, res) { return __awaiter(void 0, void 0, void 0
  */
 app.get("/fees", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
-        dBConnection.sql(templateObject_12 || (templateObject_12 = __makeTemplateObject(["SELECT * FROM fees"], ["SELECT * FROM fees"]))).then(function (response) {
+        dBConnection.sql(templateObject_16 || (templateObject_16 = __makeTemplateObject(["SELECT * FROM fees"], ["SELECT * FROM fees"]))).then(function (response) {
             res.statusCode = 200;
             res.send(response.map(function (res) { return upperize(res); }));
         })
@@ -456,7 +623,7 @@ app.get("/fees", function (req, res) { return __awaiter(void 0, void 0, void 0, 
 app.get("/all-users", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_13 || (templateObject_13 = __makeTemplateObject(["SELECT DOCUMENT_TYPE, DOCUMENT, NAME, AREA FROM persons;"], ["SELECT DOCUMENT_TYPE, DOCUMENT, NAME, AREA FROM persons;"]))).then(function (response) {
+            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_17 || (templateObject_17 = __makeTemplateObject(["SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, SEX, BIRTH, NAME, PHONE, EMAIL, TRANSPORT, AREA, ADMIN, INVITED FROM userview ORDER BY \"name\" asc ;"], ["SELECT ID, DOCUMENT_TYPE, DOCUMENT, AGE, SEX, BIRTH, NAME, PHONE, EMAIL, TRANSPORT, AREA, ADMIN, INVITED FROM userview ORDER BY \"name\" asc ;"]))).then(function (response) {
                     res.statusCode = 200;
                     res.send(response.map(function (res) { return upperize(res); }));
                 })
@@ -494,7 +661,7 @@ app.get("/all-users", function (req, res) { return __awaiter(void 0, void 0, voi
 app.post("/payment", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_14 || (templateObject_14 = __makeTemplateObject(["INSERT INTO transactions(DATE, VALUE, \"userID\", AUTHORIZED, DONATION, CONFIRMED) VALUES(NOW(), ", ", (SELECT ID FROM persons WHERE DOCUMENT_TYPE = ", " AND DOCUMENT = ", "), (SELECT ID FROM persons WHERE DOCUMENT_TYPE = ", " AND DOCUMENT = ", "), ", ", 0) RETURNING *;"], ["INSERT INTO transactions(DATE, VALUE, \"userID\", AUTHORIZED, DONATION, CONFIRMED) VALUES(NOW(), ", ", (SELECT ID FROM persons WHERE DOCUMENT_TYPE = ", " AND DOCUMENT = ", "), (SELECT ID FROM persons WHERE DOCUMENT_TYPE = ", " AND DOCUMENT = ", "), ", ", 0) RETURNING *;"])), req.body.value, req.body.type, req.body.document, req.body.authorizedBy.type, req.body.authorizedBy.document, req.body.donation).then(function (response) {
+            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_18 || (templateObject_18 = __makeTemplateObject(["INSERT INTO transactions(DATE, VALUE, \"userID\", AUTHORIZED, DONATION, CONFIRMED) VALUES(NOW(), ", ", (SELECT ID FROM persons WHERE DOCUMENT_TYPE = ", " AND DOCUMENT = ", "), (SELECT ID FROM persons WHERE DOCUMENT_TYPE = ", " AND DOCUMENT = ", "), ", ", 0) RETURNING *;"], ["INSERT INTO transactions(DATE, VALUE, \"userID\", AUTHORIZED, DONATION, CONFIRMED) VALUES(NOW(), ", ", (SELECT ID FROM persons WHERE DOCUMENT_TYPE = ", " AND DOCUMENT = ", "), (SELECT ID FROM persons WHERE DOCUMENT_TYPE = ", " AND DOCUMENT = ", "), ", ", 0) RETURNING *;"])), req.body.value, req.body.type, req.body.document, req.body.authorizedBy.type, req.body.authorizedBy.document, req.body.donation).then(function (response) {
                     res.statusCode = 200;
                     res.send(upperize(response[0]));
                 })
@@ -525,7 +692,7 @@ app.post("/payment", function (req, res) { return __awaiter(void 0, void 0, void
 app.get("/transactions", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_15 || (templateObject_15 = __makeTemplateObject(["SELECT * FROM transactionsView"], ["SELECT * FROM transactionsView"]))).then(function (response) {
+            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_19 || (templateObject_19 = __makeTemplateObject(["SELECT * FROM transactionsView ORDER BY date DESC"], ["SELECT * FROM transactionsView ORDER BY date DESC"]))).then(function (response) {
                     res.statusCode = 200;
                     res.send(response.map(function (res) { return upperize(res); }));
                 })
@@ -557,7 +724,7 @@ app.get("/transactions", function (req, res) { return __awaiter(void 0, void 0, 
 app.get("/filtered-transactions", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_16 || (templateObject_16 = __makeTemplateObject(["SELECT * FROM transactionsView t LEFT JOIN persons p ON t.\"userID\" = p.id WHERE (\"userID\" = ", " OR ", " = ANY (PARENT_RELATIONSHIP));"], ["SELECT * FROM transactionsView t LEFT JOIN persons p ON t.\"userID\" = p.id WHERE (\"userID\" = ", " OR ", " = ANY (PARENT_RELATIONSHIP));"])), req.query.id, req.query.id).then(function (response) {
+            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_20 || (templateObject_20 = __makeTemplateObject(["SELECT t.ID, t.DONATION, t.NAME, t.VALUE, t.DOCUMENT, t.DOCUMENT_TYPE, t.DATE, t.AUTHORIZED_BY, t.CONFIRMED FROM transactionsView t LEFT JOIN persons p ON t.\"userID\" = p.id WHERE (\"userID\" = ", " OR \"authorized\" = ", " OR ", " = ANY (PARENT_RELATIONSHIP));"], ["SELECT t.ID, t.DONATION, t.NAME, t.VALUE, t.DOCUMENT, t.DOCUMENT_TYPE, t.DATE, t.AUTHORIZED_BY, t.CONFIRMED FROM transactionsView t LEFT JOIN persons p ON t.\"userID\" = p.id WHERE (\"userID\" = ", " OR \"authorized\" = ", " OR ", " = ANY (PARENT_RELATIONSHIP));"])), req.query.id, req.query.id, req.query.id).then(function (response) {
                     res.statusCode = 200;
                     res.send(response.map(function (res) { return upperize(res); }));
                 })
@@ -591,7 +758,7 @@ app.get("/filtered-transactions", function (req, res) { return __awaiter(void 0,
 app.put("/edit-transaction", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_17 || (templateObject_17 = __makeTemplateObject(["UPDATE transactions SET VALUE = ", ", DONATION = ", " WHERE ID = ", " RETURNING *;"], ["UPDATE transactions SET VALUE = ", ", DONATION = ", " WHERE ID = ", " RETURNING *;"])), req.body.value, req.body.donation, req.query.id).then(function (response) {
+            case 0: return [4 /*yield*/, dBConnection.sql(templateObject_21 || (templateObject_21 = __makeTemplateObject(["UPDATE transactions SET VALUE = ", ", DONATION = ", " WHERE ID = ", " RETURNING *;"], ["UPDATE transactions SET VALUE = ", ", DONATION = ", " WHERE ID = ", " RETURNING *;"])), req.body.value, req.body.donation, req.query.id).then(function (response) {
                     res.statusCode = 200;
                     res.send(upperize(response[0]));
                 })
@@ -622,7 +789,7 @@ app.put("/edit-transaction", function (req, res) { return __awaiter(void 0, void
  */
 app.put("/transaction-approval", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
-        dBConnection.sql(templateObject_18 || (templateObject_18 = __makeTemplateObject(["UPDATE transactions SET confirmed = 1 WHERE ID IN ", " RETURNING *;"], ["UPDATE transactions SET confirmed = 1 WHERE ID IN ", " RETURNING *;"])), dBConnection.sql(req.body.ids)).then(function (response) {
+        dBConnection.sql(templateObject_22 || (templateObject_22 = __makeTemplateObject(["UPDATE transactions SET confirmed = 1 WHERE ID IN ", " RETURNING *;"], ["UPDATE transactions SET confirmed = 1 WHERE ID IN ", " RETURNING *;"])), dBConnection.sql(req.body.ids)).then(function (response) {
             res.statusCode = 200;
             res.send(response.map(function (res) { return upperize(res); }));
         })
@@ -650,7 +817,7 @@ app.put("/transaction-approval", function (req, res) { return __awaiter(void 0, 
  */
 app.get("/failures", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
-        dBConnection.sql(templateObject_19 || (templateObject_19 = __makeTemplateObject(["SELECT * FROM failures \n    ORDER BY ID DESC \n    LIMIT ", " OFFSET ", ";"], ["SELECT * FROM failures \n    ORDER BY ID DESC \n    LIMIT ", " OFFSET ", ";"])), req.query.limit || 20, req.query.skip || 5).then(function (response) {
+        dBConnection.sql(templateObject_23 || (templateObject_23 = __makeTemplateObject(["SELECT * FROM failures \n    ORDER BY ID DESC \n    LIMIT ", " OFFSET ", ";"], ["SELECT * FROM failures \n    ORDER BY ID DESC \n    LIMIT ", " OFFSET ", ";"])), req.query.limit || 20, req.query.skip || 5).then(function (response) {
             res.statusCode = 200;
             res.send(response.map(function (res) { return upperize(res); }));
         })
@@ -677,7 +844,7 @@ function getTransactions() {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, dBConnection.sql(templateObject_20 || (templateObject_20 = __makeTemplateObject(["SELECT * FROM transactionsview;"], ["SELECT * FROM transactionsview;"]))).then(function (resolve) {
+                case 0: return [4 /*yield*/, dBConnection.sql(templateObject_24 || (templateObject_24 = __makeTemplateObject(["SELECT * FROM transactionsview;"], ["SELECT * FROM transactionsview;"]))).then(function (resolve) {
                         return resolve;
                     })];
                 case 1: return [2 /*return*/, _a.sent()];
@@ -690,7 +857,7 @@ function getTransactions() {
  * @returns an excel file
  * @tested true
  */
-app.get("/export-transactions", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+app.post("/export-transactions", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var workbook, sheet_1, OBJECT, error_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
@@ -706,7 +873,7 @@ app.get("/export-transactions", function (req, res) { return __awaiter(void 0, v
                     { header: "Valor", key: "value", width: 10 },
                     { header: "Autoriza", key: "authorized_by", width: 25 },
                     { header: "Donacion", key: "donation", width: 5 },
-                    { header: "Confirmado", key: "confirmed", width: 5 }
+                    { header: "Confirmado", key: "confirmed", width: 5 },
                 ];
                 return [4 /*yield*/, getTransactions()];
             case 1:
@@ -720,13 +887,47 @@ app.get("/export-transactions", function (req, res) { return __awaiter(void 0, v
                             value: value.value,
                             authorized_by: value.authorized_by,
                             donation: value.donation === 1 ? "Sí" : "No",
-                            confirmed: value.confirmed === 1 ? "Sí" : "No"
+                            confirmed: value.confirmed === 1 ? "Sí" : "No",
                         });
                     })];
             case 2:
                 _a.sent();
                 res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
                 res.setHeader("Content-Disposition", "attachment;filename=" + "transacciones.xlsx");
+                workbook.xlsx.writeBuffer().then(function (buffer) {
+                    var transporter = nodemailer.createTransport({
+                        host: "smtp.hostinger.com",
+                        port: 465,
+                        secure: true,
+                        requireTLS: true,
+                        auth: {
+                            user: "admin@hodweb.dev",
+                            pass: "1BBC1FFD-c",
+                        },
+                    });
+                    // Create an email message
+                    var mailOptions = {
+                        from: "Banconexión <admin@hodweb.dev>",
+                        to: ["luisrios.lar@gmail.com", "luismillan@iccenev.com"],
+                        subject: "Reporte de Transacciones de Conexión Divina",
+                        text: "Aquí el reporte",
+                        attachments: [
+                            {
+                                filename: "transacciones.xlsx",
+                                content: buffer,
+                            },
+                        ],
+                    };
+                    // Send the emailX\
+                    transporter.sendMail(mailOptions, function (error, info) {
+                        if (error) {
+                            console.error("Error occurred:", error);
+                        }
+                        else {
+                            console.log("Email sent:", info.response);
+                        }
+                    });
+                });
                 workbook.xlsx.write(res);
                 return [3 /*break*/, 4];
             case 3:
@@ -744,7 +945,7 @@ function getReport() {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, dBConnection.sql(templateObject_21 || (templateObject_21 = __makeTemplateObject(["SELECT * FROM userview;"], ["SELECT * FROM userview;"]))).then(function (resolve) {
+                case 0: return [4 /*yield*/, dBConnection.sql(templateObject_25 || (templateObject_25 = __makeTemplateObject(["SELECT * FROM userview;"], ["SELECT * FROM userview;"]))).then(function (resolve) {
                         return resolve;
                     })];
                 case 1: return [2 /*return*/, _a.sent()];
@@ -759,7 +960,7 @@ function getFees() {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, dBConnection.sql(templateObject_22 || (templateObject_22 = __makeTemplateObject(["SELECT * FROM fees"], ["SELECT * FROM fees"]))).then(function (resolve) {
+                case 0: return [4 /*yield*/, dBConnection.sql(templateObject_26 || (templateObject_26 = __makeTemplateObject(["SELECT * FROM fees"], ["SELECT * FROM fees"]))).then(function (resolve) {
                         return resolve;
                     })];
                 case 1: return [2 /*return*/, _a.sent()];
@@ -776,13 +977,16 @@ function getCurrentFee(fees, age, transport) {
         return 0;
     }
     else if (age < 5) {
-        value = +fees.filter(function (fee) { return fee.attribute === "TARIFA_NINO"; })[0].value;
+        value = +fees.filter(function (fee) { return fee.attribute === "TARIFA_NINO"; })[0]
+            .value;
     }
     else if (age < 12) {
-        value = +fees.filter(function (fee) { return fee.attribute === "TARIFA_MENOR"; })[0].value;
+        value = +fees.filter(function (fee) { return fee.attribute === "TARIFA_MENOR"; })[0]
+            .value;
     }
     else if (age >= 12) {
-        value = +fees.filter(function (fee) { return fee.attribute === "TARIFA_COMPLETA"; })[0].value;
+        value = +fees.filter(function (fee) { return fee.attribute === "TARIFA_COMPLETA"; })[0]
+            .value;
     }
     // Add transport
     if (transport) {
@@ -795,7 +999,7 @@ function getCurrentFee(fees, age, transport) {
  * @returns an excel file
  * @tested true
  */
-app.get("/export-report", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+app.post("/export-report", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var fees, workbook, sheet_2, OBJECT, error_2;
     return __generator(this, function (_a) {
         switch (_a.label) {
@@ -810,13 +1014,15 @@ app.get("/export-report", function (req, res) { return __awaiter(void 0, void 0,
                 sheet_2.columns = [
                     { header: "Nombre", key: "name", width: 25 },
                     { header: "Edad", key: "age", width: 10 },
+                    { header: "Sexo", key: "sex", width: 10 },
                     { header: "Celular", key: "phone", width: 12 },
+                    { header: "Email", key: "email", width: 25 },
                     { header: "Area", key: "area", width: 25 },
                     { header: "Invitado Por", key: "host", width: 10 },
                     { header: "Transporte", key: "transport", width: 25 },
                     { header: "Total Abonado", key: "total", width: 15 },
                     { header: "Total Meta", key: "goal", width: 15 },
-                    { header: "Diferencia", key: "difference", width: 15 }
+                    { header: "Diferencia", key: "difference", width: 15 },
                 ];
                 return [4 /*yield*/, getReport()];
             case 3:
@@ -826,20 +1032,59 @@ app.get("/export-report", function (req, res) { return __awaiter(void 0, void 0,
                         sheet_2.addRow({
                             name: value.name,
                             age: value.age,
+                            sex: value.sex,
                             phone: value.phone,
+                            email: value.email,
                             area: value.area,
                             host: value.invited,
                             transport: value.transport,
                             total: +value.balance,
                             goal: goal,
-                            difference: goal - value.balance
+                            difference: goal - value.balance,
                         });
                     })];
             case 4:
                 _a.sent();
                 res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
                 res.setHeader("Content-Disposition", "attachment;filename=" + "reporte_general.xlsx");
-                workbook.xlsx.write(res);
+                res.statusCode = 200;
+                workbook.xlsx.writeBuffer().then(function (buffer) {
+                    var transporter = nodemailer.createTransport({
+                        host: "smtp.hostinger.com",
+                        port: 465,
+                        secure: true,
+                        requireTLS: true,
+                        auth: {
+                            user: "admin@hodweb.dev",
+                            pass: "1BBC1FFD-c",
+                        },
+                    });
+                    // Create an email message
+                    var mailOptions = {
+                        from: "Banconexión <admin@hodweb.dev>",
+                        to: ["luisrios.lar@gmail.com", "luismillan@iccenev.com"],
+                        subject: "Reporte de Usuarios de Conexión Divina",
+                        text: "Aquí el reporte",
+                        attachments: [
+                            {
+                                filename: "reporte.xlsx",
+                                content: buffer,
+                            },
+                        ],
+                    };
+                    // Send the emailX\
+                    transporter.sendMail(mailOptions, function (error, info) {
+                        if (error) {
+                            console.error("Error occurred:", error);
+                        }
+                        else {
+                            console.log("Email sent:", info.response);
+                        }
+                    });
+                });
+                workbook.xlsx.write(res).then(function () {
+                    res.statusCode = 409;
+                });
                 return [3 /*break*/, 6];
             case 5:
                 error_2 = _a.sent();
@@ -849,4 +1094,125 @@ app.get("/export-report", function (req, res) { return __awaiter(void 0, void 0,
         }
     });
 }); });
-var templateObject_1, templateObject_2, templateObject_3, templateObject_4, templateObject_5, templateObject_6, templateObject_7, templateObject_8, templateObject_9, templateObject_10, templateObject_11, templateObject_12, templateObject_13, templateObject_14, templateObject_15, templateObject_16, templateObject_17, templateObject_18, templateObject_19, templateObject_20, templateObject_21, templateObject_22;
+app.get("/kpi", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var fees, transactions, users, threshold, totalCollection, currentCollection, totalCampist, allMen, allWomen, und, kids, youth, adults, response;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0: return [4 /*yield*/, getFees()];
+            case 1:
+                fees = _a.sent();
+                return [4 /*yield*/, dBConnection.sql(templateObject_27 || (templateObject_27 = __makeTemplateObject(["SELECT * FROM transactionsview WHERE confirmed = 1;"], ["SELECT * FROM transactionsview WHERE confirmed = 1;"])))];
+            case 2:
+                transactions = _a.sent();
+                return [4 /*yield*/, dBConnection.sql(templateObject_28 || (templateObject_28 = __makeTemplateObject(["SELECT * FROM userview;"], ["SELECT * FROM userview;"])))];
+            case 3:
+                users = _a.sent();
+                threshold = +(req.query.threshold || 0);
+                totalCollection = getTotalCollection(users, fees);
+                currentCollection = getCurrentCollection(transactions);
+                totalCampist = countCampist(users, fees, threshold);
+                allMen = countMen(users, fees, threshold);
+                allWomen = countWomen(users, fees, threshold);
+                und = totalCampist - allMen - allWomen;
+                kids = countKids(users, fees, threshold);
+                youth = countYouth(users, fees, threshold);
+                adults = countAdults(users, fees, threshold);
+                response = {
+                    current: currentCollection,
+                    total: totalCollection,
+                    count: totalCampist,
+                    men: allMen,
+                    women: allWomen,
+                    kids: kids,
+                    youth: youth,
+                    adults: adults,
+                    und: und,
+                    area: {
+                        pro: getCollectionFromArea(transactions, "PRO") /
+                            getTotalCollection(users, fees, "PROTEMPLO"),
+                        alb: getCollectionFromArea(transactions, "ALB") /
+                            getTotalCollection(users, fees, "ALABANZA"),
+                        cre: getCollectionFromArea(transactions, "CRE") /
+                            getTotalCollection(users, fees, "CRECIMIENTO"),
+                        con: getCollectionFromArea(transactions, "CON") /
+                            getTotalCollection(users, fees, "CONSOLIDACIÓN"),
+                        dia: getCollectionFromArea(transactions, "DIA") /
+                            getTotalCollection(users, fees, "DIACONADO"),
+                        int: getCollectionFromArea(transactions, "INT") /
+                            getTotalCollection(users, fees, "INTERCESIÓN"),
+                        mat: getCollectionFromArea(transactions, "MAT") /
+                            getTotalCollection(users, fees, "MATRIMONIOS"),
+                        jcr: getCollectionFromArea(transactions, "JCR") /
+                            getTotalCollection(users, fees, "JÓVENES"),
+                        ast: getCollectionFromArea(transactions, "AST") /
+                            getTotalCollection(users, fees, "ASISTENTES"),
+                        gdp: getCollectionFromArea(transactions, "GDP") /
+                            getTotalCollection(users, fees, "GRANJA DE PAPÁ"),
+                    },
+                };
+                res.json(response);
+                return [2 /*return*/];
+        }
+    });
+}); });
+function getTotalCollection(users, fees, area) {
+    if (area) {
+        return users
+            .filter(function (user) { return user.area === area; })
+            .reduce(function (acc, user) {
+            return acc + getCurrentFee(fees, user.age, user.transport === 1);
+        }, 0);
+    }
+    else {
+        return users.reduce(function (acc, user) {
+            return acc + getCurrentFee(fees, user.age, user.transport === 1);
+        }, 0);
+    }
+}
+function getCurrentCollection(transactions) {
+    return transactions.reduce(function (acc, transaction) {
+        return acc + transaction.value;
+    }, 0);
+}
+function getCollectionFromArea(transactions, area) {
+    return transactions
+        .filter(function (transaction) { return transaction.area === area; })
+        .reduce(function (acc, transaction) {
+        return acc + transaction.value;
+    }, 0);
+}
+function countCampist(users, fees, threshold) {
+    var response = users;
+    return getThresholdCount(response, fees, threshold);
+}
+function countMen(users, fees, threshold) {
+    var response = users.filter(function (user) { return user.sex === 1; });
+    return getThresholdCount(response, fees, threshold);
+}
+function countWomen(users, fees, threshold) {
+    var response = users.filter(function (user) { return user.sex === 2; });
+    return getThresholdCount(response, fees, threshold);
+}
+function countKids(users, fees, threshold) {
+    var response = users.filter(function (user) { return user.age < 12; });
+    return getThresholdCount(response, fees, threshold);
+}
+function countYouth(users, fees, threshold) {
+    var response = users.filter(function (user) { return user.age >= 12 && user.age < 24; });
+    return getThresholdCount(response, fees, threshold);
+}
+function countAdults(users, fees, threshold) {
+    var response = users.filter(function (user) { return user.age > 24; });
+    return getThresholdCount(response, fees, threshold);
+}
+function getThresholdCount(response, fees, threshold) {
+    var count = 0;
+    response.forEach(function (user) {
+        if (user.confirmed / getCurrentFee(fees, user.age, user.transport === 1) >=
+            threshold) {
+            count++;
+        }
+    });
+    return count;
+}
+var templateObject_1, templateObject_2, templateObject_3, templateObject_4, templateObject_5, templateObject_6, templateObject_7, templateObject_8, templateObject_9, templateObject_10, templateObject_11, templateObject_12, templateObject_13, templateObject_14, templateObject_15, templateObject_16, templateObject_17, templateObject_18, templateObject_19, templateObject_20, templateObject_21, templateObject_22, templateObject_23, templateObject_24, templateObject_25, templateObject_26, templateObject_27, templateObject_28;
