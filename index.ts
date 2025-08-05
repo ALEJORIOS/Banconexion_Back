@@ -753,7 +753,9 @@ app.post("/export-report", async (req: Request, res: Response) => {
     sheet.columns = [
       { header: "Nombre", key: "name", width: 25 },
       { header: "Edad", key: "age", width: 10 },
+      { header: "Sexo", key: "sex", width: 10 },
       { header: "Celular", key: "phone", width: 12 },
+      { header: "Email", key: "email", width: 25 },
       { header: "Area", key: "area", width: 25 },
       { header: "Invitado Por", key: "host", width: 10 },
       { header: "Transporte", key: "transport", width: 25 },
@@ -772,7 +774,9 @@ app.post("/export-report", async (req: Request, res: Response) => {
       sheet.addRow({
         name: value.name,
         age: value.age,
+        sex: value.sex,
         phone: value.phone,
+        email: value.email,
         area: value.area,
         host: value.invited,
         transport: value.transport,
